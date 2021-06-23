@@ -22,11 +22,21 @@ make
 ../conv.sh ./iftracer_main
 ```
 
+``` bash
+# for Max OS X
+CXX=g++-11 cmake .. -DIFTRACER_EXAMPLE=1
+```
+
 make
 ``` bash
 make
 make test
 ./conv.sh ./iftracer_main
+```
+
+``` bash
+# for Max OS X
+make CXX=g++-11
 ```
 
 ## 個別に関数をフィルタする例
@@ -60,3 +70,4 @@ void __cyg_profile_func_exit(void* func_address, void* call_site);
   * 主な原因は最適化されたテンプレート関数などで、予め生成した実行ファイルを`nm`してもその情報を得られないため
 
 * ASLRの無効化を明示的に行わなくてもトレースできている
+* macではtidがうまく取得できていない

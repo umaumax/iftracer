@@ -12,7 +12,8 @@ LIB_OBJ  := iftracer_hook.o
 .SUFFIXES: .cpp .c .o
 
 .PHONY: all
-all: depend $(APP)
+all: $(APP)
+# all: depend $(APP)
 
 $(APP): $(APP_OBJ) $(LIB_OBJ)
 	$(CXX) $^ $(CXXFLAGS) -lpthread -ggdb3 -o $(APP)
@@ -31,14 +32,14 @@ clean:
 	$(RM) $(APP) $(APP_OBJ) $(LIB_OBJ) depend.inc
 	rm -rf ./iftracer.out.*
 
-.PHONY: depend
-depend:
-	makedepend -- $(CXXFLAGS) -- $(ALL_C_FILES)
+# .PHONY: depend
+# depend:
+	# makedepend -- $(CXXFLAGS) -- $(ALL_C_FILES)
 
 .PHONY: test
 test: $(APP)
 	echo "[TEST]"
 	./$(APP)
 
--include depend.inc
-# DO NOT DELETE
+# -include depend.inc
+# # DO NOT DELETE
