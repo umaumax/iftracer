@@ -26,7 +26,7 @@ namespace {
 pid_t __attribute__((no_instrument_function)) gettid() {
   return syscall(SYS_gettid);
 }
-}
+}  // namespace
 
 class MmapWriter {
  public:
@@ -97,7 +97,6 @@ class MmapWriter {
       std::cout << "local_offset_:" << local_offset_ << std::endl;
     }
     msync(head_, local_offset_, MS_SYNC);
-    // size_t filesize = uintptr_t(cursor_) - uintptr_t(map);
     if (ftruncate(fd_, file_offset_) != 0) {
       AddErrorMessageWithErrono("Close(): ftruncate():", errno);
       return false;
@@ -121,14 +120,12 @@ class MmapWriter {
     if (extend_size < size) {
       extend_size = ((size + 4095) / 4096) * 4096;
     }
-    // size_t tmp_local_offset_ = local_offset_;
     size_t new_file_size = file_size_ + extend_size;
     size_t new_offset = (file_offset_ / 4096) * 4096 + (local_offset_ % 4096);
     if (!Open(filename_, new_file_size, new_offset)) {
       AddErrorMessage("PrepareWrite():");
       return false;
     }
-    // local_offset_ = tmp_local_offset_ % 4096;
     return true;
   }
 
@@ -203,11 +200,6 @@ class Logger {
   void Exit(void* func_address, void* call_site);
 
  private:
-  // int fd;
-  // char* map;
-  // long page_size, map_size;
-  // std::size_t offset_ = 0;
-  // uint8_t* cursor_;
   MmapWriter mw_;
 };
 namespace {
@@ -219,36 +211,13 @@ thread_local pid_t tid = gettid();
 // LD_PRELOAD利用時などを含めてこの保証は実現不可能
 // このLoggerよりも後に廃棄されるデストラクタはtracerしてもログに出力できない状態
 thread_local Logger logger;
-}
+}  // namespace
 Logger::Logger() {
   std::string filename = std::string("iftracer.out.") + std::to_string(tid);
   bool ret             = mw_.Open(filename, FILE_SIZE);
   if (!ret) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
   }
-
-  // fd = open(filename.c_str(), O_CREAT | O_RDWR | O_TRUNC, 0666);
-  // if (fd < 0) {
-  // printf("Error : can't open file\n");
-  // return;
-  // }
-  //
-  // page_size = getpagesize();
-  // map_size  = (FILE_SIZE / page_size + 1) * page_size;
-  //
-  // if (ftruncate(fd, map_size) != 0) {
-  // printf("Error : ftruncate failed\n");
-  // return;
-  // }
-  //
-  // map = (char*)mmap(nullptr, map_size, PROT_WRITE, MAP_SHARED, fd, 0);
-  //
-  // if (map == MAP_FAILED) {
-  // printf("Error : mmap failed\n");
-  // return;
-  // }
-  // // strcat(map, "mmap is useful for read/write file.\n");
-  // cursor_ = (uint8_t*)map;
 }
 Logger::~Logger() {
   bool ret = mw_.Close();
@@ -257,26 +226,16 @@ Logger::~Logger() {
   }
   // ライフタイムをこの値を利用して管理する(デストラクタが呼び出されない、基本型を利用する);
   tid = 0;
-  // msync(map, map_size, 0);
-  // size_t filesize=  uintptr_t(cursor_)-uintptr_t(map);
-  // if (ftruncate(fd, filesize) != 0) {
-  // printf("Error : ftruncate failed\n");
-  // return;
-  // }
-  //
-  // close(fd);
-  // munmap(map, map_size);
 };
 
 void Logger::Enter(void* func_address, void* call_site) {
-  // clock取得に置き換える
+  // TODO: add cpu clock pattern
   uint64_t micro_since_epoch =
       std::chrono::duration_cast<std::chrono::microseconds>(
           std::chrono::system_clock::now().time_since_epoch())
           .count();
-  // printf("[%d][%"PRIu64"][trace func][enter]:%p call %p\n", tid, micro_since_epoch,
-  // call_site, func_address);
-  int max_n = 128;
+  // printf("[%d][%"PRIu64"][trace func][enter]:%p call %p\n", tid, micro_since_epoch, call_site, func_address);
+  int max_n = 256;
   bool ret  = mw_.PrepareWrite(max_n);
   if (!ret) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
@@ -286,22 +245,16 @@ void Logger::Enter(void* func_address, void* call_site) {
                    "%d %" PRIu64 " enter %p %p\n", tid, micro_since_epoch,
                    call_site, func_address);
   mw_.Seek(n);
-
-  // cursor_ += n;
-  // offset_ += n;
-  // *reinterpret_cast<int*>(cursor_) = tid;
-  // cursor_ += 4;
 }
 
 void Logger::Exit(void* func_address, void* call_site) {
-  // clock取得に置き換える
+  // TODO: add cpu clock pattern
   uint64_t micro_since_epoch =
       std::chrono::duration_cast<std::chrono::microseconds>(
           std::chrono::system_clock::now().time_since_epoch())
           .count();
-  // printf("[%d][%"PRIu64"][trace func][exit]:%p call %p\n", tid, micro_since_epoch,
-  // call_site, func_address);
-  int max_n = 128;
+  // printf("[%d][%"PRIu64"][trace func][exit]:%p call %p\n", tid, micro_since_epoch, call_site, func_address);
+  int max_n = 256;
   bool ret  = mw_.PrepareWrite(max_n);
   if (!ret) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
@@ -312,11 +265,6 @@ void Logger::Exit(void* func_address, void* call_site) {
                    "%d %" PRIu64 " exit %p %p\n", tid, micro_since_epoch,
                    call_site, func_address);
   mw_.Seek(n);
-
-  // cursor_ += n;
-  // offset_ += n;
-  // *reinterpret_cast<int*>(cursor_) = tid;
-  // cursor_ += 4;
 }
 
 // const char* __attribute__((no_instrument_function)) addr2name(void* address) {
@@ -330,8 +278,9 @@ void __attribute__((no_instrument_function))
 __cyg_profile_func_enter(void* func_address, void* call_site) {
   if (tid != 0) {
     logger.Enter(func_address, call_site);
-  }else{
-    printf("[call after tracer destructor][enter]: %p calls %p\n", call_site, func_address);
+  } else {
+    printf("[call after tracer destructor][enter]: %p calls %p\n", call_site,
+           func_address);
   }
   // const char* func_name = addr2name(func_address);
   // if (func_name) {
@@ -343,8 +292,9 @@ void __attribute__((no_instrument_function))
 __cyg_profile_func_exit(void* func_address, void* call_site) {
   if (tid != 0) {
     logger.Exit(func_address, call_site);
-  }else {
-    printf("[call after tracer destructor][ exit]: %p calls %p\n", call_site, func_address);
+  } else {
+    printf("[call after tracer destructor][ exit]: %p calls %p\n", call_site,
+           func_address);
   }
   // const char* func_name = addr2name(func_address);
   // if (func_name) {
