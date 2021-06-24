@@ -67,11 +67,11 @@ class MmapWriter {
     size_t aligned_offset = (offset / page_size_) * page_size_;
 
     if (verbose_) {
-      std::cout << "[Open]" << std::endl;
-      std::cout << "offset:" << offset << std::endl;
-      std::cout << "aligned_offset:" << aligned_offset << std::endl;
-      std::cout << "file_size_:" << file_size_ << std::endl;
-      std::cout << "map_size_:" << map_size_ << std::endl;
+      printf("[Open]\n");
+      printf("offset:%zu\n", offset);
+      printf("aligned_offset:%zu\n", aligned_offset);
+      printf("file_size_:%zu\n", file_size_);
+      printf("map_size_:%zu\n", map_size_);
     }
     head_ = reinterpret_cast<uint8_t*>(
         mmap(nullptr, map_size_, PROT_WRITE, MAP_SHARED, fd_, aligned_offset));
@@ -84,6 +84,11 @@ class MmapWriter {
     file_offset_  = offset;
     local_offset_ = offset % 4096;
     is_open_      = true;
+    if (verbose_) {
+      printf("cursor_:%p\n", cursor_);
+      printf("file_offset_:%zu\n", file_offset_);
+      printf("local_offset_:%zu\n", local_offset_);
+    }
     return true;
   }
   bool Close() {
@@ -92,9 +97,9 @@ class MmapWriter {
       return false;
     }
     if (verbose_) {
-      std::cout << "[Close]" << std::endl;
-      std::cout << "file_offset_:" << file_offset_ << std::endl;
-      std::cout << "local_offset_:" << local_offset_ << std::endl;
+      printf("[Close]\n");
+      printf("file_offset_:%zu\n", file_offset_);
+      printf("local_offset_:%zu\n", local_offset_);
     }
     msync(head_, local_offset_, MS_SYNC);
     if (ftruncate(fd_, file_offset_) != 0) {
