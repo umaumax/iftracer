@@ -131,7 +131,7 @@ class MmapWriter {
       AddErrorMessage("PrepareWrite():");
       return false;
     }
-    size_t extend_size = 4096 * 10;
+    size_t extend_size = extend_size_;
     if (extend_size < size) {
       extend_size = ((size + 4095) / 4096) * 4096;
     }
@@ -166,16 +166,18 @@ class MmapWriter {
         message + std::string(std::strerror(errno)) + ":" + error_message_;
   }
 
-  bool verbose_ = false;
-  std::string filename_;
-  bool is_open_              = false;
-  int fd_                    = 0;
-  uint8_t* head_             = nullptr;
-  size_t file_size_          = 0;
-  size_t page_size_          = getpagesize();
-  size_t map_size_           = 0;
-  size_t file_offset_        = 0;
-  size_t local_offset_       = 0;
+  size_t extend_size_   = 4096 * 10;
+  size_t page_size_     = getpagesize();
+  bool verbose_         = false;
+  std::string filename_ = "";
+  bool is_open_         = false;
+  int fd_               = 0;
+  uint8_t* head_        = nullptr;
+  size_t file_size_     = 0;
+  size_t map_size_      = 0;
+  size_t file_offset_   = 0;
+  size_t local_offset_  = 0;
+  // NOTE: cursor_ = head_ + local_offset_
   uint8_t* cursor_           = nullptr;
   std::string error_message_ = "";
 };
