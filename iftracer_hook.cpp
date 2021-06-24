@@ -80,9 +80,9 @@ class MmapWriter {
       AddErrorMessageWithErrono("Open(): ftruncate():", errno);
       return false;
     }
-    cursor_       = reinterpret_cast<uint8_t*>(head_);
     file_offset_  = offset;
     local_offset_ = offset % 4096;
+    cursor_       = reinterpret_cast<uint8_t*>(head_) + local_offset_;
     is_open_      = true;
     if (verbose_) {
       printf("cursor_:%p\n", cursor_);
