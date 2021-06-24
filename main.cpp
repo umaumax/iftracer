@@ -1,11 +1,13 @@
 #include <stdio.h>
+
 #include <chrono>
+#include <iostream>
 #include <thread>
 
 class Animal {
-  public:
-    Animal() {}
-    ~Animal() {}
+ public:
+  Animal() {}
+  ~Animal() {}
 };
 
 void piyo() { printf("piyo\n"); }
@@ -18,7 +20,12 @@ void fuga() { printf("fuga\n"); }
 Animal global_animal;
 
 int main() {
-  for (int i = 0; i < 1; i++) {
+  std::cout << "Hello world!" << std::endl;
+  char buf[256] = {0};
+  snprintf(buf, sizeof(buf), "snprintf sample");
+  std::cout << "snprintf:" << buf << std::endl;
+
+  for (int i = 0; i < 10; i++) {
     std::thread th([&] {
       hoge();
       fuga();
