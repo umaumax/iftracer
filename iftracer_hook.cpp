@@ -208,7 +208,7 @@ class MmapWriter {
 // return 0;
 // }
 
-#define FILE_SIZE 1024 * 1024
+#define FILE_SIZE 4096 * 1024
 class Logger {
  public:
   Logger();
