@@ -19,6 +19,6 @@ if(IFTRACER_EXAMPLE)
     pthread
     ${PROJECT_NAME}
   )
-  set_target_properties(${PROJECT_NAME}_main PROPERTIES COMPILE_FLAGS "-ggdb3 -O3 -finstrument-functions -finstrument-functions-exclude-file-list=chrono")
+  set_target_properties(${PROJECT_NAME}_main PROPERTIES COMPILE_FLAGS "-ggdb3 -O3 -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
   add_dependencies(${PROJECT_NAME}_main ${PROJECT_NAME})
 endif(IFTRACER_EXAMPLE)

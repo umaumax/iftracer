@@ -6,7 +6,7 @@ instrument-functions tracer
 add to `CMakeLists.txt`
 ``` cmake
 add_subdirectory(iftracer)
-set(CMAKE_CXX_FLAGS "-std=c++11 -lpthread -ggdb3 -finstrument-functions -finstrument-functions-exclude-file-list=chrono,include ${CMAKE_CXX_FLAGS}")
+set(CMAKE_CXX_FLAGS "-std=c++11 -lpthread -ggdb3 -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++ ${CMAKE_CXX_FLAGS}")
 target_link_libraries(${PROJECT_NAME} iftracer)
 ```
 
@@ -55,6 +55,9 @@ $ g++ -E -v - </dev/null |& grep -E '^ /[^ ]+$'
  /usr/include/x86_64-linux-gnu
  /usr/include
 ```
+
+* `-finstrument-functions-exclude-file-list=bits`: これを最低限使用しないとSEGVが発生するケースがある
+* `-finstrument-functions-exclude-file-list=bits,include/c++`: トレース量の削減のために、多くの標準ライブラリを無効化する
 
 ## メモ
 下記をビルドオプションを変更して、分割ビルドする仕組み

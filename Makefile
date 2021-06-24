@@ -19,7 +19,7 @@ $(APP): $(APP_OBJ) $(LIB_OBJ)
 	$(CXX) $^ $(CXXFLAGS) -lpthread -ggdb3 -o $(APP)
 
 $(APP_OBJ): $(APP_SRCS)
-	$(CXX) $^ $(CXXFLAGS) -c -lpthread -ggdb3 -o $(APP_OBJ)  -finstrument-functions -finstrument-functions-exclude-file-list=chrono
+	$(CXX) $^ $(CXXFLAGS) -c -lpthread -ggdb3 -o $(APP_OBJ) -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++
 
 $(LIB_OBJ): $(LIB_SRCS)
 	$(CXX) $^ $(CXXFLAGS) -c -lpthread -ggdb3 -o $(LIB_OBJ)
