@@ -98,19 +98,20 @@ function main() {
 
   echo 1>&2 "[start convert to trace json]"
   {
-    cat <<EOF
+    echo -n "
 {
-  "traceEvents": [
-EOF
+  \"traceEvents\": [
+"
     local i=0
     # -r: Backslash  does not act as an escape character.  The backslash is considered to be part of the line. In particular, a backslash-newline pair can not be used as a line continuation.
     while IFS= read -r line || [[ -n "$line" ]]; do
-      local tid=$(echo $line | cut -d' ' -f1)
-      local ts=$(echo $line | cut -d' ' -f2)
-      local flag=$(echo $line | cut -d' ' -f3)
-      local caller=$(echo $line | cut -d' ' -f4)
-      local callee=$(echo $line | cut -d' ' -f5)
-      local callee_func=$(echo $callee | cut -d':' -f1 | tr -d '<>' | c++filt)
+      local fields=($line)
+      local tid=${fields[0]}
+      local ts=${fields[1]}
+      local flag=${fields[2]}
+      local caller=${fields[3]}
+      local callee=${fields[4]}
+      local callee_func=$(echo $callee | cut -d':' -f1 | tr -d '<>')
       local callee_file=$(echo $callee | cut -d':' -f2-)
       local ph="B"
       if [[ $flag == "exit" ]]; then
@@ -119,30 +120,31 @@ EOF
       if [[ $i != 0 ]]; then
         echo ','
       fi
-      cat <<EOF
+      echo -n "
     {
-      "name": "$callee_func",
-      "ph": "$ph",
-      "ts": $ts,
-      "pid": 1234,
-      "tid": $tid,
-      "args": {
-        "file":"$callee_file"
+      \"name\": \"$callee_func\",
+      \"ph\": \"$ph\",
+      \"ts\": $ts,
+      \"pid\": 1234,
+      \"tid\": $tid,
+      \"args\": {
+        \"file\":\"$callee_file\"
       }
     }
-EOF
+"
       ((i++))
     done < <(cat ./iftracer-human.out)
 
-    cat <<EOF
+    echo -n "
   ],
-  "displayTimeUnit": "ns",
-  "otherData": {
-    "version": "My Application v1.0"
+  \"displayTimeUnit\": \"ns\",
+  \"systemTraceEvents\": \"SystemTraceData\",
+  \"otherData\": {
+    \"version\": \"My Application v1.0\"
   }
 }
-EOF
-  } >"$output_file"
+"
+  } | c++filt >"$output_file"
   echo 1>&2 "[output]: $output_file"
 }
 
