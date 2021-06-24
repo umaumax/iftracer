@@ -101,14 +101,24 @@ class MmapWriter {
       printf("file_offset_:%zu\n", file_offset_);
       printf("local_offset_:%zu\n", local_offset_);
     }
-    msync(head_, local_offset_, MS_SYNC);
+
+    if (msync(head_, local_offset_, MS_SYNC) != 0) {
+      AddErrorMessageWithErrono("Close(): msync():", errno);
+      return false;
+    }
+    if (munmap(head_, map_size_) != 0) {
+      AddErrorMessageWithErrono("Close(): munmap():", errno);
+      return false;
+    }
     if (ftruncate(fd_, file_offset_) != 0) {
       AddErrorMessageWithErrono("Close(): ftruncate():", errno);
       return false;
     }
 
-    close(fd_);
-    munmap(head_, map_size_);
+    if (close(fd_) != 0) {
+      AddErrorMessageWithErrono("Close(): close():", errno);
+      return false;
+    }
     is_open_ = false;
     return true;
   }
