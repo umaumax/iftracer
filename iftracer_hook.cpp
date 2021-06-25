@@ -17,6 +17,7 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -25,6 +26,7 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -60,7 +62,7 @@ class MmapWriter {
     }
   };
   bool IsOpen();
-  bool Open(std::string filename, size_t size, size_t offset);
+  bool Open(std::string filename, size_t size, int64_t offset);
   bool Close();
   bool PrepareWrite(size_t size);
   void Seek(size_t n);
@@ -70,17 +72,17 @@ class MmapWriter {
   void AddErrorMessage(std::string message);
   void AddErrorMessageWithErrono(std::string message, int errno_value);
 
-  size_t extend_size_   = 4096 * 10;
-  size_t page_size_     = getpagesize();
-  bool verbose_         = false;
-  std::string filename_ = "";
-  bool is_open_         = false;
-  int fd_               = 0;
-  uint8_t* head_        = nullptr;
-  size_t file_size_     = 0;
-  size_t map_size_      = 0;
-  size_t file_offset_   = 0;
-  size_t local_offset_  = 0;
+  size_t extend_size_      = 4096 * 10;
+  size_t page_size_        = getpagesize();
+  bool verbose_            = false;
+  std::string filename_    = "";
+  bool is_open_            = false;
+  int fd_                  = 0;
+  uint8_t* head_           = nullptr;
+  size_t aligned_ile_size_ = 0;
+  size_t map_size_         = 0;
+  size_t file_offset_      = 0;
+  size_t local_offset_     = 0;
   // NOTE: cursor_ = head_ + local_offset_
   uint8_t* cursor_           = nullptr;
   std::string error_message_ = "";
@@ -88,10 +90,15 @@ class MmapWriter {
 
 class Logger {
  public:
-  Logger();
+  explicit Logger(int64_t offset);
   ~Logger();
+  void Initialize(int64_t offset);
   void Enter(void* func_address, void* call_site);
   void Exit(void* func_address, void* call_site);
+  void Finalize();
+
+  static const int64_t TRUNCATE = 0;
+  static const int64_t LAST     = -1;
 
  private:
   MmapWriter mw_;
@@ -99,7 +106,9 @@ class Logger {
 
 bool MmapWriter::IsOpen() { return is_open_; }
 
-bool MmapWriter::Open(std::string filename, size_t size, size_t offset = 0) {
+// offset == 0: truncate file
+// offset  < 0: seek to last offset
+bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
   if (IsOpen()) {
     AddErrorMessage("Open(): already open map");
     return false;
@@ -115,11 +124,22 @@ bool MmapWriter::Open(std::string filename, size_t size, size_t offset = 0) {
     return false;
   }
 
-  file_size_ = ((size + page_size_ - 1) / page_size_) * page_size_;
-  map_size_ =
-      ((file_size_ - offset + page_size_ - 1) / page_size_) * page_size_;
+  if (offset < 0) {
+    size_t file_size = 0;
+    struct stat stbuf;
+    if (fstat(fd_, &stbuf) != 0) {
+      AddErrorMessageWithErrono("Open(): fstat():", errno);
+      return false;
+    }
+    file_size = stbuf.st_size;
+    offset    = file_size;
+  }
 
-  if (ftruncate(fd_, file_size_) != 0) {
+  aligned_ile_size_ = ((size + page_size_ - 1) / page_size_) * page_size_;
+  map_size_ =
+      ((aligned_ile_size_ - offset + page_size_ - 1) / page_size_) * page_size_;
+
+  if (ftruncate(fd_, aligned_ile_size_) != 0) {
     AddErrorMessageWithErrono("Open(): ftruncate():", errno);
     return false;
   }
@@ -128,9 +148,9 @@ bool MmapWriter::Open(std::string filename, size_t size, size_t offset = 0) {
 
   if (verbose_) {
     printf("[Open]\n");
-    printf("offset:%zu\n", offset);
+    printf("offset:%lld\n", offset);
     printf("aligned_offset:%zu\n", aligned_offset);
-    printf("file_size_:%zu\n", file_size_);
+    printf("aligned_ile_size_:%zu\n", aligned_ile_size_);
     printf("map_size_:%zu\n", map_size_);
   }
   head_ = reinterpret_cast<uint8_t*>(
@@ -195,7 +215,7 @@ bool MmapWriter::PrepareWrite(size_t size) {
   if (extend_size < size) {
     extend_size = ((size + 4095) / 4096) * 4096;
   }
-  size_t new_file_size = file_size_ + extend_size;
+  size_t new_file_size = aligned_ile_size_ + extend_size;
   size_t new_offset    = (file_offset_ / 4096) * 4096 + (local_offset_ % 4096);
   if (!Open(filename_, new_file_size, new_offset)) {
     AddErrorMessage("PrepareWrite():");
@@ -255,26 +275,37 @@ void MmapWriter::AddErrorMessageWithErrono(std::string message,
 namespace {
 thread_local pid_t tid = gettid();
 // destructors which are called after this logger destructor cannot access this logger variable
-thread_local Logger logger;
+thread_local Logger logger(Logger::TRUNCATE);
+// I don't know why Apple M1 don't call logger destructor of main thread
+#ifdef __APPLE__
+struct ForceLoggerDestructor {
+  ~ForceLoggerDestructor() { logger.Finalize(); }
+} force_logger_destructor;
+#endif
 }  // namespace
 
-Logger::Logger() {
+Logger::Logger(int64_t offset) { Initialize(offset); }
+Logger::~Logger() { Finalize(); };
+
+void Logger::Initialize(int64_t offset) {
   std::string filename = std::string("iftracer.out.") + std::to_string(tid);
-  bool ret             = mw_.Open(filename, FILE_SIZE);
+  bool ret             = mw_.Open(filename, FILE_SIZE, offset);
   if (!ret) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
   }
 }
-Logger::~Logger() {
-  bool ret = mw_.Close();
-  if (!ret) {
-    std::cerr << mw_.GetErrorMessage() << std::endl;
-  }
+void Logger::Finalize() {
+  if (tls_init_trigger == 1) {
+    bool ret = mw_.Close();
+    if (!ret) {
+      std::cerr << mw_.GetErrorMessage() << std::endl;
+    }
 
-  // below value is used to know loggre lifetime
-  // the reason why use int is that basic type has no destructor
-  tls_init_trigger = 0;
-};
+    // below value is used to know loggre lifetime
+    // the reason why use int is that basic type has no destructor
+    tls_init_trigger = 0;
+  }
+}
 
 void Logger::Enter(void* func_address, void* call_site) {
   // TODO: add cpu clock pattern
@@ -329,7 +360,7 @@ __cyg_profile_func_enter(void* func_address, void* call_site) {
     logger.Enter(func_address, call_site);
   } else {
     // after thread_local logger destructor called
-    Logger logger;
+    Logger logger(Logger::LAST);
     logger.Enter(func_address, call_site);
     // printf("[call after tracer destructor][enter]: %p calls %p\n", call_site,
     // func_address);
@@ -346,7 +377,7 @@ __cyg_profile_func_exit(void* func_address, void* call_site) {
     logger.Exit(func_address, call_site);
   } else {
     // after thread_local logger destructor called
-    Logger logger;
+    Logger logger(Logger::LAST);
     logger.Exit(func_address, call_site);
     // printf("[call after tracer destructor][ exit]: %p calls %p\n", call_site,
     // func_address);
