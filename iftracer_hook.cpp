@@ -36,9 +36,19 @@ void __cyg_profile_func_exit(void* func_address, void* call_site);
 }
 
 namespace {
+#if __APPLE__
+pid_t gettid() {
+  uint64_t tid64 = 0;
+  pthread_threadid_np(nullptr, &tid64);
+  return static_cast<pid_t>(tid64);
+}
+#elif __linux__
 pid_t __attribute__((no_instrument_function)) gettid() {
   return syscall(SYS_gettid);
 }
+#else
+#error "Non supported os"
+#endif
 }  // namespace
 
 class MmapWriter {
