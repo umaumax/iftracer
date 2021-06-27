@@ -33,15 +33,15 @@ int main() {
       piyo();
       fuga();
     });
-    printf("hoge:%p\n", hoge);
-    printf("fuga:%p\n", fuga);
-    printf("piyo:%p\n", piyo);
-    printf("main:%p\n", main);
-    hoge();
-    fuga();
-
+    for (int i = 0; i < 1000; i++) {
+      printf("hoge:%p\n", hoge);
+      printf("fuga:%p\n", fuga);
+      printf("piyo:%p\n", piyo);
+      printf("main:%p\n", main);
+      hoge();
+      fuga();
+    }
     th.join();
-
     hoge();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     hoge();
