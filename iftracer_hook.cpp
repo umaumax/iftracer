@@ -33,8 +33,6 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 #include <iostream>
 #include <string>
 
-#define FILE_SIZE 4096 * 1024
-
 extern "C" {
 void __cyg_profile_func_enter(void* func_address, void* call_site);
 void __cyg_profile_func_exit(void* func_address, void* call_site);
@@ -75,20 +73,26 @@ class MmapWriter {
   void AddErrorMessage(std::string message);
   void AddErrorMessageWithErrono(std::string message, int errno_value);
 
-  size_t extend_size_      = 4096 * 10;
-  size_t page_size_        = getpagesize();
-  bool verbose_            = false;
-  std::string filename_    = "";
-  bool is_open_            = false;
-  int fd_                  = 0;
-  uint8_t* head_           = nullptr;
-  size_t aligned_ile_size_ = 0;
-  size_t map_size_         = 0;
-  size_t file_offset_      = 0;
-  size_t local_offset_     = 0;
+  size_t extend_size_       = 4096 * 4 * 2;
+  bool verbose_             = false;
+  std::string filename_     = "";
+  bool is_open_             = false;
+  int fd_                   = 0;
+  uint8_t* head_            = nullptr;
+  size_t aligned_file_size_ = 0;
+  size_t map_size_          = 0;
+  size_t file_offset_       = 0;
+  size_t local_offset_      = 0;
   // NOTE: cursor_ = head_ + local_offset_
   uint8_t* cursor_           = nullptr;
   std::string error_message_ = "";
+
+  // Max OS X(page size is 16384B(16KB))
+  const size_t PAGE_SIZE = getpagesize();
+  const size_t PAGE_MASK = (PAGE_SIZE - 1);
+
+  size_t PAGE_ALIGEND(size_t x) { return (((x) + PAGE_MASK) & ~PAGE_MASK); }
+  size_t PAGE_ALIGEND_ROUND_DOWN(size_t x) { return ((x) & ~PAGE_MASK); }
 };
 
 class Logger {
@@ -138,22 +142,21 @@ bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
     offset    = file_size;
   }
 
-  aligned_ile_size_ = ((size + page_size_ - 1) / page_size_) * page_size_;
-  map_size_ =
-      ((aligned_ile_size_ - offset + page_size_ - 1) / page_size_) * page_size_;
+  aligned_file_size_ = PAGE_ALIGEND(size);
+  map_size_          = PAGE_ALIGEND(aligned_file_size_ - offset);
 
-  if (ftruncate(fd_, aligned_ile_size_) != 0) {
+  if (ftruncate(fd_, aligned_file_size_) != 0) {
     AddErrorMessageWithErrono("Open(): ftruncate():", errno);
     return false;
   }
 
-  size_t aligned_offset = (offset / page_size_) * page_size_;
+  size_t aligned_offset = PAGE_ALIGEND_ROUND_DOWN(offset);
 
   if (verbose_) {
     printf("[Open]\n");
     printf("offset:%lld\n", offset);
     printf("aligned_offset:%zu\n", aligned_offset);
-    printf("aligned_ile_size_:%zu\n", aligned_ile_size_);
+    printf("aligned_file_size_:%zu\n", aligned_file_size_);
     printf("map_size_:%zu\n", map_size_);
   }
   head_ = reinterpret_cast<uint8_t*>(
@@ -164,7 +167,7 @@ bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
     return false;
   }
   file_offset_  = offset;
-  local_offset_ = offset % 4096;
+  local_offset_ = offset % PAGE_SIZE;
   cursor_       = reinterpret_cast<uint8_t*>(head_) + local_offset_;
   is_open_      = true;
   if (verbose_) {
@@ -216,10 +219,11 @@ bool MmapWriter::PrepareWrite(size_t size) {
   }
   size_t extend_size = extend_size_;
   if (extend_size < size) {
-    extend_size = ((size + 4095) / 4096) * 4096;
+    extend_size = PAGE_ALIGEND(size);
   }
-  size_t new_file_size = aligned_ile_size_ + extend_size;
-  size_t new_offset    = (file_offset_ / 4096) * 4096 + (local_offset_ % 4096);
+  size_t new_file_size = aligned_file_size_ + extend_size;
+  size_t new_offset =
+      PAGE_ALIGEND_ROUND_DOWN(file_offset_) + (local_offset_ % PAGE_SIZE);
   if (!Open(filename_, new_file_size, new_offset)) {
     AddErrorMessage("PrepareWrite():");
     return false;
@@ -292,7 +296,7 @@ Logger::~Logger() { Finalize(); };
 
 void Logger::Initialize(int64_t offset) {
   std::string filename = std::string("iftracer.out.") + std::to_string(tid);
-  bool ret             = mw_.Open(filename, FILE_SIZE, offset);
+  bool ret             = mw_.Open(filename, 4096 * 4 * 2, offset);
   if (!ret) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
   }
