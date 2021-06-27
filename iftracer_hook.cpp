@@ -286,13 +286,26 @@ thread_local Logger logger(Logger::TRUNCATE);
 // I don't know why Apple M1 don't call logger destructor of main thread
 #ifdef __APPLE__
 struct ForceLoggerDestructor {
-  ~ForceLoggerDestructor() { logger.Finalize(); }
+  ~ForceLoggerDestructor() {
+    if (tls_init_trigger != 0) {
+      logger.Finalize();
+      tls_init_trigger = 0;
+    }
+  }
 } force_logger_destructor;
 #endif
 }  // namespace
 
 Logger::Logger(int64_t offset) { Initialize(offset); }
-Logger::~Logger() { Finalize(); };
+Logger::~Logger() {
+  if (tls_init_trigger != 0) {
+    Finalize();
+
+    // below value is used to know loggre lifetime
+    // the reason why use int is that basic type has no destructor
+    tls_init_trigger = 0;
+  }
+};
 
 void Logger::Initialize(int64_t offset) {
   std::string filename = std::string("iftracer.out.") + std::to_string(tid);
@@ -302,15 +315,9 @@ void Logger::Initialize(int64_t offset) {
   }
 }
 void Logger::Finalize() {
-  if (tls_init_trigger == 1) {
-    bool ret = mw_.Close();
-    if (!ret) {
-      std::cerr << mw_.GetErrorMessage() << std::endl;
-    }
-
-    // below value is used to know loggre lifetime
-    // the reason why use int is that basic type has no destructor
-    tls_init_trigger = 0;
+  bool ret = mw_.Close();
+  if (!ret) {
+    std::cerr << mw_.GetErrorMessage() << std::endl;
   }
 }
 
