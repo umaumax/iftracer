@@ -19,6 +19,10 @@ if(IFTRACER_EXAMPLE)
     pthread
     ${PROJECT_NAME}
   )
-  set_target_properties(${PROJECT_NAME}_main PROPERTIES COMPILE_FLAGS "-ggdb3 -O3 -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    set_target_properties(${PROJECT_NAME}_main PROPERTIES COMPILE_FLAGS "-ggdb3 -O3 -finstrument-functions-after-inlining")
+  else()
+    set_target_properties(${PROJECT_NAME}_main PROPERTIES COMPILE_FLAGS "-ggdb3 -O3 -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
+  endif()
   add_dependencies(${PROJECT_NAME}_main ${PROJECT_NAME})
 endif(IFTRACER_EXAMPLE)
