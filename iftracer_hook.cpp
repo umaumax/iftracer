@@ -376,8 +376,7 @@ __cyg_profile_func_enter(void* func_address, void* call_site) {
     // after thread_local logger destructor called
     Logger logger(Logger::LAST);
     logger.Enter(func_address, call_site);
-    // printf("[call after tracer destructor][enter]: %p calls %p\n", call_site,
-    // func_address);
+    // printf("[call after tracer destructor][enter][%d]: %p calls %p\n", tid, call_site, func_address);
   }
   // const char* func_name = addr2name(func_address);
   // if (func_name) {
@@ -393,8 +392,7 @@ __cyg_profile_func_exit(void* func_address, void* call_site) {
     // after thread_local logger destructor called
     Logger logger(Logger::LAST);
     logger.Exit(func_address, call_site);
-    // printf("[call after tracer destructor][ exit]: %p calls %p\n", call_site,
-    // func_address);
+    // printf("[call after tracer destructor][ exit][%d]: %p calls %p\n", tid, call_site, func_address);
   }
   // const char* func_name = addr2name(func_address);
   // if (func_name) {
