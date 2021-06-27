@@ -65,6 +65,7 @@ class MmapWriter {
   bool IsOpen();
   bool Open(std::string filename, size_t size, int64_t offset);
   bool Close();
+  bool CheckCapacity(size_t size);
   bool PrepareWrite(size_t size);
   void Seek(size_t n);
   std::string GetErrorMessage();
@@ -108,6 +109,13 @@ class Logger {
   static const int64_t LAST     = -1;
 
  private:
+  void InternalProcessEnter();
+  void InternalProcessExit();
+  void InternalProcess(uintptr_t event);
+  void ExternalProcessEnter(const std::string& text);
+  void ExternalProcessExit(const std::string& text);
+  void ExternalProcess(uintptr_t event, const std::string& text);
+
   MmapWriter mw_;
 };
 
@@ -210,8 +218,15 @@ bool MmapWriter::Close() {
   return true;
 }
 
-bool MmapWriter::PrepareWrite(size_t size) {
+bool MmapWriter::CheckCapacity(size_t size) {
   if (local_offset_ + size <= map_size_) {
+    return true;
+  }
+  return false;
+}
+
+bool MmapWriter::PrepareWrite(size_t size) {
+  if (CheckCapacity(size)) {
     return true;
   }
   if (!Close()) {
@@ -322,50 +337,153 @@ void Logger::Finalize() {
   }
 }
 
-void Logger::Enter(void* func_address, void* call_site) {
+namespace {
+constexpr int64_t pointer_size        = sizeof(uintptr_t) * 8;
+constexpr uintptr_t flag_mask         = (0x1UL << (pointer_size - 2)) - 1;
+constexpr uintptr_t enter_flag        = 0x0UL << (pointer_size - 2);
+constexpr uintptr_t exit_flag         = 0x1UL << (pointer_size - 2);
+constexpr uintptr_t internal_use_flag = 0x2UL << (pointer_size - 2);
+constexpr uintptr_t external_use_flag = 0x3UL << (pointer_size - 2);
+uintptr_t set_flag_to_address(uintptr_t address, uintptr_t flag) {
+  return (address & flag_mask) | flag;
+}
+uint64_t get_current_micro_timestamp() {
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
+constexpr uintptr_t internal_process_enter = 0x0UL << (pointer_size - 3);
+constexpr uintptr_t internal_process_exit  = 0x1UL << (pointer_size - 3);
+
+constexpr uintptr_t external_process_enter = 0x0UL << (pointer_size - 3);
+constexpr uintptr_t external_process_exit  = 0x1UL << (pointer_size - 3);
+}  // namespace
+
+void Logger::InternalProcessEnter() { InternalProcess(internal_process_enter); }
+void Logger::InternalProcessExit() { InternalProcess(internal_process_exit); }
+
+void Logger::InternalProcess(uintptr_t event) {
+#ifdef IFTRACE_TEXT_FORMAT
+#else
   // TODO: add cpu clock pattern
-  uint64_t micro_since_epoch =
-      std::chrono::duration_cast<std::chrono::microseconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count();
-  // printf("[%d][%"PRIu64"][trace func][enter]:%p call %p\n", tid, micro_since_epoch, call_site, func_address);
-  int max_n = 256;
-  bool ret  = mw_.PrepareWrite(max_n);
-  if (!ret) {
+  // add dummy offset +1
+  // if start timestamp is same, chrome://tracing overlay stack
+  uint64_t micro_since_epoch = get_current_micro_timestamp() + 1;
+  int max_n                  = 256;
+  if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
     return;
   }
+
+  *reinterpret_cast<uint64_t*>(mw_.Cursor()) = micro_since_epoch;
+  mw_.Seek(sizeof(uint64_t));
+  uintptr_t masked_func_address = set_flag_to_address(
+      reinterpret_cast<uintptr_t>(event), internal_use_flag);
+  *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_func_address;
+  mw_.Seek(sizeof(uintptr_t));
+#endif
+}
+
+void Logger::ExternalProcessEnter(const std::string& text) {
+  ExternalProcess(external_process_enter, text);
+}
+void Logger::ExternalProcessExit(const std::string& text) {
+  ExternalProcess(external_process_exit, text);
+}
+
+void Logger::ExternalProcess(uintptr_t event, const std::string& text) {
+#ifdef IFTRACE_TEXT_FORMAT
+#else
+  // TODO: add cpu clock pattern
+  uint64_t micro_since_epoch = get_current_micro_timestamp();
+  constexpr int align_buffer = 8;
+  int max_n = sizeof(uint64_t) + sizeof(uintptr_t) + text.size() + align_buffer;
+  if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
+    std::cerr << mw_.GetErrorMessage() << std::endl;
+    return;
+  }
+
+  *reinterpret_cast<uint64_t*>(mw_.Cursor()) = micro_since_epoch;
+  mw_.Seek(sizeof(uint64_t));
+
+  size_t text_size           = text.size();
+  uintptr_t masked_text_size = set_flag_to_address(
+      reinterpret_cast<uintptr_t>(text_size), external_use_flag);
+  *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_text_size;
+  mw_.Seek(sizeof(uintptr_t));
+
+  text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
+  size_t aligned_text_size = (((text_size) + (8 - 1)) & ~(8 - 1));
+  mw_.Seek(aligned_text_size);
+#endif
+}
+
+void Logger::Enter(void* func_address, void* call_site) {
+  // printf("[%d][%"PRIu64"][trace func][enter]:%p call %p\n", tid, micro_since_epoch, call_site, func_address);
+  int max_n = 256;
+  if (!mw_.CheckCapacity(max_n)) {
+    InternalProcessEnter();
+    if (!mw_.PrepareWrite(max_n)) {
+      std::cerr << mw_.GetErrorMessage() << std::endl;
+      InternalProcessExit();
+      return;
+    }
+    InternalProcessExit();
+  }
+
+  // TODO: add cpu clock pattern
+  uint64_t micro_since_epoch = get_current_micro_timestamp();
   // arm thumb mode use LSB
   // Odd addresses for Thumb mode, and even addresses for ARM mode.
   void* normalized_func_address =
       reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(func_address) & (~1));
+#ifdef IFTRACE_TEXT_FORMAT
   // TODO: add binary write pattern
   int n = snprintf(reinterpret_cast<char*>(mw_.Cursor()), max_n,
                    "%d %" PRIu64 " enter %p %p\n", tid, micro_since_epoch,
                    call_site, normalized_func_address);
   mw_.Seek(n);
+#else
+  *reinterpret_cast<uint64_t*>(mw_.Cursor()) = micro_since_epoch;
+  mw_.Seek(sizeof(uint64_t));
+  uintptr_t masked_func_address = set_flag_to_address(
+      reinterpret_cast<uintptr_t>(normalized_func_address), enter_flag);
+  *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_func_address;
+  mw_.Seek(sizeof(uintptr_t));
+#endif
 }
 
 void Logger::Exit(void* func_address, void* call_site) {
-  // TODO: add cpu clock pattern
-  uint64_t micro_since_epoch =
-      std::chrono::duration_cast<std::chrono::microseconds>(
-          std::chrono::system_clock::now().time_since_epoch())
-          .count();
   // printf("[%d][%"PRIu64"][trace func][exit]:%p call %p\n", tid, micro_since_epoch, call_site, func_address);
   int max_n = 256;
-  bool ret  = mw_.PrepareWrite(max_n);
-  if (!ret) {
-    std::cerr << mw_.GetErrorMessage() << std::endl;
-    return;
+  if (!mw_.CheckCapacity(max_n)) {
+    InternalProcessEnter();
+    if (!mw_.PrepareWrite(max_n)) {
+      std::cerr << mw_.GetErrorMessage() << std::endl;
+      InternalProcessExit();
+      return;
+    }
+    InternalProcessExit();
   }
+
+  // TODO: add cpu clock pattern
+  uint64_t micro_since_epoch = get_current_micro_timestamp();
   void* normalized_func_address =
       reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(func_address) & (~1));
+#ifdef IFTRACE_TEXT_FORMAT
   // TODO: add binary write pattern
   int n = snprintf(reinterpret_cast<char*>(mw_.Cursor()), max_n,
                    "%d %" PRIu64 " exit %p %p\n", tid, micro_since_epoch,
                    call_site, normalized_func_address);
   mw_.Seek(n);
+#else
+  *reinterpret_cast<uint64_t*>(mw_.Cursor()) = micro_since_epoch;
+  mw_.Seek(sizeof(uint64_t));
+  uintptr_t masked_func_address = set_flag_to_address(
+      reinterpret_cast<uintptr_t>(normalized_func_address), exit_flag);
+  *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_func_address;
+  mw_.Seek(sizeof(uintptr_t));
+#endif
 }
 
 // const char* __attribute__((no_instrument_function)) addr2name(void* address) {

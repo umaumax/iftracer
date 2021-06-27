@@ -85,3 +85,5 @@ void __cyg_profile_func_exit(void* func_address, void* call_site);
 * ASLRの無効化を明示的に行わなくてもトレースできている(Ubuntu)
   * MacではASLRが必要
 * macでは正しいtidがうまく取得できていない
+
+`-finstrument-functions`でフックが埋め込まれないアドレスは存在するし、おそらく、上位2bitは0利用しなくとも問題ないと考えられるので、関数のアドレスの上位2bitに情報を埋め込む
