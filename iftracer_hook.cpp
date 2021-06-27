@@ -114,7 +114,7 @@ class Logger {
 bool MmapWriter::IsOpen() { return is_open_; }
 
 // offset == 0: truncate file
-// offset  < 0: seek to last offset
+// offset  < 0: seek to last offset, extend size
 bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
   if (IsOpen()) {
     AddErrorMessage("Open(): already open map");
@@ -139,7 +139,8 @@ bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
       return false;
     }
     file_size = stbuf.st_size;
-    offset    = file_size;
+    size += file_size;
+    offset = file_size;
   }
 
   aligned_file_size_ = PAGE_ALIGEND(size);
