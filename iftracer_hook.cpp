@@ -6,8 +6,11 @@ class FastLoggerCaller {
   ~FastLoggerCaller() {}
 };
 namespace {
+#if defined(SUPPORTS_INIT_PRIORITY) && SUPPORTS_INIT_PRIORITY
+__attribute__((init_priority(101)))
+#endif
 FastLoggerCaller fast_logger_caller(tls_init_trigger);
-}
+}  // namespace
 
 #include <dlfcn.h>
 #include <fcntl.h>
