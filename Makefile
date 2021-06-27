@@ -39,7 +39,11 @@ $(LIB_OBJ): $(LIB_SRCS)
 .PHONY: clean
 clean:
 	$(RM) $(APP) $(APP_OBJ) $(LIB_OBJ) depend.inc
-	rm -rf ./iftracer.out.*
+	$(RM) ./iftracer.out.*
+
+.PHONY: clean.out
+clean.out:
+	$(RM) ./iftracer.out.*
 
 # .PHONY: depend
 # depend:
