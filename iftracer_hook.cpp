@@ -366,9 +366,7 @@ void Logger::InternalProcess(uintptr_t event) {
 #ifdef IFTRACE_TEXT_FORMAT
 #else
   // TODO: add cpu clock pattern
-  // add dummy offset +1
-  // if start timestamp is same, chrome://tracing overlay stack
-  uint64_t micro_since_epoch = get_current_micro_timestamp() + 1;
+  uint64_t micro_since_epoch = get_current_micro_timestamp();
   int max_n                  = 256;
   if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
