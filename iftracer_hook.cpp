@@ -334,10 +334,14 @@ void Logger::Enter(void* func_address, void* call_site) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
     return;
   }
+  // arm thumb mode use LSB
+  // Odd addresses for Thumb mode, and even addresses for ARM mode.
+  void* normalized_func_address =
+      reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(func_address) & (~1));
   // TODO: add binary write pattern
   int n = snprintf(reinterpret_cast<char*>(mw_.Cursor()), max_n,
                    "%d %" PRIu64 " enter %p %p\n", tid, micro_since_epoch,
-                   call_site, func_address);
+                   call_site, normalized_func_address);
   mw_.Seek(n);
 }
 
@@ -354,10 +358,12 @@ void Logger::Exit(void* func_address, void* call_site) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
     return;
   }
+  void* normalized_func_address =
+      reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(func_address) & (~1));
   // TODO: add binary write pattern
   int n = snprintf(reinterpret_cast<char*>(mw_.Cursor()), max_n,
                    "%d %" PRIu64 " exit %p %p\n", tid, micro_since_epoch,
-                   call_site, func_address);
+                   call_site, normalized_func_address);
   mw_.Seek(n);
 }
 

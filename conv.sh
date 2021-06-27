@@ -77,7 +77,7 @@ function main() {
     # hex addr 0 offset
     cat ./iftracer.out.* >./iftracer-tmp.out
   else
-    # hex addr -1 offset
+    # hex addr -1 offset for arm thumb mode
     cat ./iftracer.out.* | sed -E -e 's/1$/0/' -e 's/5$/4/' -e 's/9$/8/' -e 's/d$/c/' >./iftracer-tmp.out
   fi
 
