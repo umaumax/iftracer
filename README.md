@@ -22,9 +22,13 @@ make
 ../conv.sh ./iftracer_main
 ```
 
+for Max OS X
 ``` bash
-# for Max OS X
+# g++-11
 CXX=g++-11 cmake .. -DIFTRACER_EXAMPLE=1
+
+# for dwarf info
+dsymutil iftracer_main
 ```
 
 make
@@ -34,9 +38,13 @@ make test
 ./conv.sh ./iftracer_main
 ```
 
+for Max OS X
 ``` bash
-# for Max OS X
+# g++-11
 make CXX=g++-11
+
+# for dwarf info
+dsymutil iftracer_main
 ```
 
 ## 個別に関数をフィルタする例
