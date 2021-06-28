@@ -198,7 +198,7 @@ bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
 
   if (verbose_) {
     printf("[Open]\n");
-    printf("offset:%lld\n", offset);
+    printf("offset:%" PRId64 "\n", offset);
     printf("aligned_offset:%zu\n", aligned_offset);
     printf("aligned_file_size_:%zu\n", aligned_file_size_);
     printf("map_size_:%zu\n", map_size_);
