@@ -54,6 +54,41 @@ pid_t __attribute__((no_instrument_function)) gettid() {
 #endif
 }  // namespace
 
+namespace {
+size_t get_init_buffer_size() {
+  static size_t init_buffer_size = 0;
+  if (init_buffer_size != 0) {
+    return init_buffer_size;
+  }
+
+  char* env;
+  env = getenv("IFTRACER_INIT_BUFFER");
+  if (env != nullptr) {
+    init_buffer_size = 4096 * std::stoi(std::string(env));
+  }
+  if (init_buffer_size < 4096 * 4 * 2) {
+    init_buffer_size = 4096 * 4 * 2;
+  }
+  return init_buffer_size;
+}
+size_t get_extend_buffer_size() {
+  static size_t extend_buffer_size = 0;
+  if (extend_buffer_size != 0) {
+    return extend_buffer_size;
+  }
+
+  char* env;
+  env = getenv("IFTRACER_EXTEND_BUFFER");
+  if (env != nullptr) {
+    extend_buffer_size = 4096 * std::stoi(std::string(env));
+  }
+  if (extend_buffer_size < 4096 * 4 * 2) {
+    extend_buffer_size = 4096 * 4 * 2;
+  }
+  return extend_buffer_size;
+}
+}
+
 class MmapWriter {
  public:
   MmapWriter(){};
@@ -74,7 +109,7 @@ class MmapWriter {
   void AddErrorMessage(std::string message);
   void AddErrorMessageWithErrono(std::string message, int errno_value);
 
-  size_t extend_size_       = 4096 * 4 * 2;
+  size_t extend_size_       = get_extend_buffer_size();
   bool verbose_             = false;
   std::string filename_     = "";
   bool is_open_             = false;
@@ -325,7 +360,11 @@ Logger::~Logger() {
 
 void Logger::Initialize(int64_t offset) {
   std::string filename = std::string("iftracer.out.") + std::to_string(tid);
-  bool ret             = mw_.Open(filename, 4096 * 4 * 2, offset);
+  size_t buffer_size   = 4096 * 4;  // used only for last extend
+  if (offset >= 0) {
+    buffer_size = get_init_buffer_size();
+  }
+  bool ret = mw_.Open(filename, buffer_size, offset);
   if (!ret) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
   }

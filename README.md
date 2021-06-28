@@ -47,6 +47,13 @@ make CXX=g++-11
 dsymutil iftracer_main
 ```
 
+## for detail
+### environment variables
+* `IFTRACER_INIT_BUFFER=8`: 各スレッドの初期バッファサイズ(4KB単位)(デフォルト: 4KB*8=32KB)
+  * 短時間のトレースならば、この値を大きく設定することで、トレース時の負荷を終了時にまとめられる
+* `IFTRACER_EXTEND_BUFFE=8`: 各スレッドの拡張バッファサイズ(4KB単位)(デフォルト: 4KB*8=32KB)
+  * トレースの途中で内部処理に時間がかかってしまうので、なるべく小さな単位を指定する
+
 ## 個別に関数をフィルタする例
 
 ``` bash
