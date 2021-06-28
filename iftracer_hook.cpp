@@ -6,7 +6,7 @@ class FastLoggerCaller {
   ~FastLoggerCaller() {}
 };
 namespace {
-#if defined(SUPPORTS_INIT_PRIORITY) && SUPPORTS_INIT_PRIORITY
+#if __linux__
 __attribute__((init_priority(101)))
 #endif
 FastLoggerCaller fast_logger_caller(tls_init_trigger);
