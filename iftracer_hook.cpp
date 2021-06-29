@@ -43,6 +43,7 @@ pid_t __attribute__((no_instrument_function)) gettid() {
 }  // namespace
 
 namespace {
+// NOTE: Max OS X(page size is 16384B(16KB))
 size_t get_init_buffer_size() {
   static size_t init_buffer_size = 0;
   if (init_buffer_size != 0) {

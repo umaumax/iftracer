@@ -50,7 +50,6 @@ class MmapWriter {
   std::string error_message_ = "";
 
   // NOTE: below value is declared as field for initialize this class constructor timing
-  // Max OS X(page size is 16384B(16KB))
   const size_t PAGE_SIZE = getpagesize();
   const size_t PAGE_MASK = (PAGE_SIZE - 1);
 
