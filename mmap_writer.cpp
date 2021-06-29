@@ -88,9 +88,11 @@ bool MmapWriter::Close() {
     printf("map_size_:%zu\n", map_size_);
   }
 
-  if (msync(head_, local_offset_, MS_SYNC) != 0) {
-    AddErrorMessageWithErrono("Close(): msync():", errno);
-    return false;
+  if (local_offset_ != 0) {
+    if (msync(head_, local_offset_, MS_SYNC) != 0) {
+      AddErrorMessageWithErrono("Close(): msync():", errno);
+      return false;
+    }
   }
   if (munmap(head_, map_size_) != 0) {
     AddErrorMessageWithErrono("Close(): munmap():", errno);
