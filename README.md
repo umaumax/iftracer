@@ -3,15 +3,19 @@
 instrument-functions tracer
 
 ## how to use
-add to `CMakeLists.txt`
+link iftracer library and build target application with `-finstrument-functions`
+
+if you use `cmake`, just add below script to `CMakeLists.txt`
 ``` cmake
 add_subdirectory(iftracer)
 set(CMAKE_CXX_FLAGS "-std=c++11 -lpthread -ggdb3 -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++ ${CMAKE_CXX_FLAGS}")
 target_link_libraries(${PROJECT_NAME} iftracer)
 ```
 
+depending on the situation, you can add also `-finstrument-functions-exclude-function-list=__mangled_func_name` option
+
 ### how to run example
-cmake
+#### cmake
 ``` bash
 mkdir build
 cd build
@@ -31,7 +35,7 @@ CXX=g++-11 cmake .. -DIFTRACER_EXAMPLE=1
 dsymutil iftracer_main
 ```
 
-make
+#### make
 ``` bash
 make
 make run
@@ -59,7 +63,6 @@ dsymutil iftracer_main
 * `IFTRACER_FLUSH_BUFFER=16`: 各スレッドのフラッシュ(`msync`)するバッファサイズのしきい値(4KB単位)(デフォルト: 4KB*16=64KB)
 
 ## 個別に関数をフィルタする例
-
 ``` bash
 nm ./a.out | cut -c20- | grep -e duration -e clock | sed 's/@@.*$//' > exclude-function-list.txt
 echo -finstrument-functions-exclude-function-list=$(cat exclude-function-list.txt | tr '\n' ',')
