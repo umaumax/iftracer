@@ -297,14 +297,6 @@ void Logger::Exit(void* func_address, void* call_site) {
 #endif
 }
 
-// #include <dlfcn.h>
-// const char* __attribute__((no_instrument_function)) addr2name(void* address) {
-// Dl_info dli;
-// if (dladdr(address, &dli) != 0) {
-// return dli.dli_sname;
-// }
-// return nullptr;
-// }
 void __attribute__((no_instrument_function))
 __cyg_profile_func_enter(void* func_address, void* call_site) {
   if (tls_init_trigger != 0) {
@@ -316,10 +308,6 @@ __cyg_profile_func_enter(void* func_address, void* call_site) {
     logger.Finalize();
     // printf("[call after tracer destructor][enter][%d]: %p calls %p\n", tid, call_site, func_address);
   }
-  // const char* func_name = addr2name(func_address);
-  // if (func_name) {
-  // printf("[trace func][enter]:%s\n", func_name);
-  // }
 }
 
 void __attribute__((no_instrument_function))
@@ -333,8 +321,4 @@ __cyg_profile_func_exit(void* func_address, void* call_site) {
     logger.Finalize();
     // printf("[call after tracer destructor][ exit][%d]: %p calls %p\n", tid, call_site, func_address);
   }
-  // const char* func_name = addr2name(func_address);
-  // if (func_name) {
-  // printf("[trace func][exit ]:%s\n", func_name);
-  // }
 }
