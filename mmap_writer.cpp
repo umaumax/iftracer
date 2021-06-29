@@ -41,15 +41,15 @@ bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
     offset = file_size;
   }
 
-  aligned_file_size_ = PAGE_ALIGEND(size);
-  map_size_          = PAGE_ALIGEND(aligned_file_size_ - offset);
+  aligned_file_size_ = PAGE_ALIGNED(size);
+  map_size_          = PAGE_ALIGNED(aligned_file_size_ - offset);
 
   if (ftruncate(fd_, aligned_file_size_) != 0) {
     AddErrorMessageWithErrono("Open(): ftruncate():", errno);
     return false;
   }
 
-  size_t aligned_offset = PAGE_ALIGEND_ROUND_DOWN(offset);
+  size_t aligned_offset = PAGE_ALIGNED_ROUND_DOWN(offset);
 
   if (verbose_) {
     printf("[Open]\n");
@@ -112,8 +112,8 @@ bool MmapWriter::Flush(size_t size) {
   if (local_offset_ < size) {
     return false;
   }
-  size_t aligend_size = PAGE_ALIGEND_ROUND_DOWN(size);
-  if (aligend_size == 0) {
+  size_t aligned_size = PAGE_ALIGNED_ROUND_DOWN(size);
+  if (aligned_size == 0) {
     return false;
   }
   if (!IsOpen()) {
@@ -124,18 +124,18 @@ bool MmapWriter::Flush(size_t size) {
     printf("[Flush]\n");
     printf("aligned_size:%zu\n", aligned_size);
   }
-  if (msync(head_, aligend_size, MS_SYNC) != 0) {
+  if (msync(head_, aligned_size, MS_SYNC) != 0) {
     AddErrorMessageWithErrono("Flush(): msync():", errno);
     return false;
   }
-  if (munmap(head_, aligend_size) != 0) {
+  if (munmap(head_, aligned_size) != 0) {
     AddErrorMessageWithErrono("Flush(): munmap():", errno);
     return false;
   }
 
-  head_ += aligend_size;
-  map_size_ -= aligend_size;
-  local_offset_ -= aligend_size;
+  head_ += aligned_size;
+  map_size_ -= aligned_size;
+  local_offset_ -= aligned_size;
   return true;
 }
 
@@ -156,11 +156,11 @@ bool MmapWriter::PrepareWrite(size_t size) {
   }
   size_t extend_size = extend_size_;
   if (extend_size < size) {
-    extend_size = PAGE_ALIGEND(size);
+    extend_size = PAGE_ALIGNED(size);
   }
   size_t new_file_size = aligned_file_size_ + extend_size;
   size_t new_offset =
-      PAGE_ALIGEND_ROUND_DOWN(file_offset_) + (local_offset_ % PAGE_SIZE);
+      PAGE_ALIGNED_ROUND_DOWN(file_offset_) + (local_offset_ % PAGE_SIZE);
   if (!Open(filename_, new_file_size, new_offset)) {
     AddErrorMessage("PrepareWrite():");
     return false;

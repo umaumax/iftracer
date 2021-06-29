@@ -48,8 +48,8 @@ class MmapWriter {
   const size_t PAGE_SIZE = getpagesize();
   const size_t PAGE_MASK = (PAGE_SIZE - 1);
 
-  size_t PAGE_ALIGEND(size_t x) { return (((x) + PAGE_MASK) & ~PAGE_MASK); }
-  size_t PAGE_ALIGEND_ROUND_DOWN(size_t x) { return ((x) & ~PAGE_MASK); }
+  size_t PAGE_ALIGNED(size_t x) { return (((x) + PAGE_MASK) & ~PAGE_MASK); }
+  size_t PAGE_ALIGNED_ROUND_DOWN(size_t x) { return ((x) & ~PAGE_MASK); }
 };
 
 #endif  // MMAP_WRITER_HPP_INCLUDED
