@@ -55,12 +55,12 @@ clean.out:
 
 .PHONY: run
 run: $(APP)
-	echo "[RUN EXAMPLE]"
+	@echo "[RUN EXAMPLE]"
 	./$(APP)
 
 .PHONY: test
 test: $(MMAP_WRITER_TEST)
-	echo "[RUN TEST]"
+	@echo "[RUN TEST]"
 	./$(MMAP_WRITER_TEST)
 
 # -include depend.inc
