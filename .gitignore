@@ -1,2 +1,3 @@
 output.json
 iftracer.out.*
+mmap_writer_test.bin
