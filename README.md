@@ -34,7 +34,7 @@ dsymutil iftracer_main
 make
 ``` bash
 make
-make test
+make run
 ./conv.sh ./iftracer_main
 ```
 

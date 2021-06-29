@@ -12,26 +12,14 @@ __attribute__((init_priority(101)))
 FastLoggerCaller fast_logger_caller(tls_init_trigger);
 }  // namespace
 
-#include <dlfcn.h>
-#include <fcntl.h>
-#include <inttypes.h>
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
 #include <sys/syscall.h>
-#include <sys/types.h>
-#include <unistd.h>
 
 #include <chrono>
-#include <cstddef>
-#include <cstdint>
 #include <cstring>
-#include <fstream>
 #include <iostream>
 #include <string>
+
+#include "mmap_writer.hpp"
 
 extern "C" {
 void __cyg_profile_func_enter(void* func_address, void* call_site);
@@ -89,48 +77,6 @@ size_t get_extend_buffer_size() {
 }
 }
 
-class MmapWriter {
- public:
-  MmapWriter(){};
-  ~MmapWriter() {
-    if (IsOpen()) {
-      Close();
-    }
-  };
-  bool IsOpen();
-  bool Open(std::string filename, size_t size, int64_t offset);
-  bool Close();
-  bool CheckCapacity(size_t size);
-  bool PrepareWrite(size_t size);
-  void Seek(size_t n);
-  std::string GetErrorMessage();
-  uint8_t* Cursor();
-  // private:
-  void AddErrorMessage(std::string message);
-  void AddErrorMessageWithErrono(std::string message, int errno_value);
-
-  size_t extend_size_       = get_extend_buffer_size();
-  bool verbose_             = false;
-  std::string filename_     = "";
-  bool is_open_             = false;
-  int fd_                   = 0;
-  uint8_t* head_            = nullptr;
-  size_t aligned_file_size_ = 0;
-  size_t map_size_          = 0;
-  size_t file_offset_       = 0;
-  size_t local_offset_      = 0;
-  // NOTE: cursor_ = head_ + local_offset_
-  uint8_t* cursor_           = nullptr;
-  std::string error_message_ = "";
-
-  // Max OS X(page size is 16384B(16KB))
-  const size_t PAGE_SIZE = getpagesize();
-  const size_t PAGE_MASK = (PAGE_SIZE - 1);
-
-  size_t PAGE_ALIGEND(size_t x) { return (((x) + PAGE_MASK) & ~PAGE_MASK); }
-  size_t PAGE_ALIGEND_ROUND_DOWN(size_t x) { return ((x) & ~PAGE_MASK); }
-};
-
 class Logger {
  public:
   explicit Logger(int64_t offset);
@@ -153,182 +99,6 @@ class Logger {
 
   MmapWriter mw_;
 };
-
-bool MmapWriter::IsOpen() { return is_open_; }
-
-// offset == 0: truncate file
-// offset  < 0: seek to last offset, extend size
-bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
-  if (IsOpen()) {
-    AddErrorMessage("Open(): already open map");
-    return false;
-  }
-  filename_     = filename;
-  int open_flag = O_CREAT | O_RDWR;
-  if (offset == 0) {
-    open_flag |= O_TRUNC;
-  }
-  fd_ = open(filename.c_str(), open_flag, 0666);
-  if (fd_ < 0) {
-    AddErrorMessageWithErrono("Open(): open():", errno);
-    return false;
-  }
-
-  if (offset < 0) {
-    size_t file_size = 0;
-    struct stat stbuf;
-    if (fstat(fd_, &stbuf) != 0) {
-      AddErrorMessageWithErrono("Open(): fstat():", errno);
-      return false;
-    }
-    file_size = stbuf.st_size;
-    size += file_size;
-    offset = file_size;
-  }
-
-  aligned_file_size_ = PAGE_ALIGEND(size);
-  map_size_          = PAGE_ALIGEND(aligned_file_size_ - offset);
-
-  if (ftruncate(fd_, aligned_file_size_) != 0) {
-    AddErrorMessageWithErrono("Open(): ftruncate():", errno);
-    return false;
-  }
-
-  size_t aligned_offset = PAGE_ALIGEND_ROUND_DOWN(offset);
-
-  if (verbose_) {
-    printf("[Open]\n");
-    printf("offset:%" PRId64 "\n", offset);
-    printf("aligned_offset:%zu\n", aligned_offset);
-    printf("aligned_file_size_:%zu\n", aligned_file_size_);
-    printf("map_size_:%zu\n", map_size_);
-  }
-  head_ = reinterpret_cast<uint8_t*>(
-      mmap(nullptr, map_size_, PROT_WRITE, MAP_SHARED, fd_, aligned_offset));
-
-  if (head_ == MAP_FAILED) {
-    AddErrorMessageWithErrono("Open(): ftruncate():", errno);
-    return false;
-  }
-  file_offset_  = offset;
-  local_offset_ = offset % PAGE_SIZE;
-  cursor_       = reinterpret_cast<uint8_t*>(head_) + local_offset_;
-  is_open_      = true;
-  if (verbose_) {
-    printf("cursor_:%p\n", cursor_);
-    printf("file_offset_:%zu\n", file_offset_);
-    printf("local_offset_:%zu\n", local_offset_);
-  }
-  return true;
-}
-bool MmapWriter::Close() {
-  if (!IsOpen()) {
-    AddErrorMessage("Close(): no opening map:");
-    return false;
-  }
-  if (verbose_) {
-    printf("[Close]\n");
-    printf("file_offset_:%zu\n", file_offset_);
-    printf("local_offset_:%zu\n", local_offset_);
-  }
-
-  if (msync(head_, local_offset_, MS_SYNC) != 0) {
-    AddErrorMessageWithErrono("Close(): msync():", errno);
-    return false;
-  }
-  if (munmap(head_, map_size_) != 0) {
-    AddErrorMessageWithErrono("Close(): munmap():", errno);
-    return false;
-  }
-  if (ftruncate(fd_, file_offset_) != 0) {
-    AddErrorMessageWithErrono("Close(): ftruncate():", errno);
-    return false;
-  }
-
-  if (close(fd_) != 0) {
-    AddErrorMessageWithErrono("Close(): close():", errno);
-    return false;
-  }
-  is_open_ = false;
-  return true;
-}
-
-bool MmapWriter::CheckCapacity(size_t size) {
-  if (local_offset_ + size <= map_size_) {
-    return true;
-  }
-  return false;
-}
-
-bool MmapWriter::PrepareWrite(size_t size) {
-  if (CheckCapacity(size)) {
-    return true;
-  }
-  if (!Close()) {
-    AddErrorMessage("PrepareWrite():");
-    return false;
-  }
-  size_t extend_size = extend_size_;
-  if (extend_size < size) {
-    extend_size = PAGE_ALIGEND(size);
-  }
-  size_t new_file_size = aligned_file_size_ + extend_size;
-  size_t new_offset =
-      PAGE_ALIGEND_ROUND_DOWN(file_offset_) + (local_offset_ % PAGE_SIZE);
-  if (!Open(filename_, new_file_size, new_offset)) {
-    AddErrorMessage("PrepareWrite():");
-    return false;
-  }
-  return true;
-}
-
-void MmapWriter::Seek(size_t n) {
-  file_offset_ += n;
-  local_offset_ += n;
-  cursor_ += n;
-}
-
-std::string MmapWriter::GetErrorMessage() {
-  std::string tmp = error_message_;
-  error_message_.clear();
-  return tmp;
-}
-uint8_t* MmapWriter::Cursor() { return cursor_; }
-
-void MmapWriter::AddErrorMessage(std::string message) {
-  error_message_ = message + error_message_;
-}
-void MmapWriter::AddErrorMessageWithErrono(std::string message,
-                                           int errno_value) {
-  error_message_ =
-      message + std::string(std::strerror(errno)) + ":" + error_message_;
-}
-
-// for MmapWriter check
-// int main(const int argc, const char* argv[]) {
-// bool ret = false;
-// MmapWriter mw;
-// if (!ret) {
-// std::cerr << mw.GetErrorMessage() << std::endl;
-// return 1;
-// }
-// int n = 100;
-// for (int i = 0; i < 1000; i++) {
-// ret = mw.PrepareWrite(n);
-// if (!ret) {
-// std::cerr << mw.GetErrorMessage() << std::endl;
-// break;
-// }
-// memset(mw.cursor_, i % 256, n);
-// mw.Seek(n);
-// }
-// ret = mw.Close();
-// if (!ret) {
-// std::cerr << mw.GetErrorMessage() << std::endl;
-// return 1;
-// }
-// return 0;
-// }
 
 namespace {
 thread_local pid_t tid = gettid();
@@ -360,7 +130,8 @@ Logger::~Logger() {
 
 void Logger::Initialize(int64_t offset) {
   std::string filename = std::string("iftracer.out.") + std::to_string(tid);
-  size_t buffer_size   = 4096 * 4;  // used only for last extend
+  mw_.SetExtendSize(get_extend_buffer_size());
+  size_t buffer_size = 4096 * 4;  // used only for last extend
   if (offset >= 0) {
     buffer_size = get_init_buffer_size();
   }
@@ -501,6 +272,8 @@ void Logger::Exit(void* func_address, void* call_site) {
       return;
     }
     InternalProcessExit();
+  } else {
+    mw_.Flush(4096 * 4);
   }
 
   // TODO: add cpu clock pattern
@@ -523,6 +296,7 @@ void Logger::Exit(void* func_address, void* call_site) {
 #endif
 }
 
+// #include <dlfcn.h>
 // const char* __attribute__((no_instrument_function)) addr2name(void* address) {
 // Dl_info dli;
 // if (dladdr(address, &dli) != 0) {
