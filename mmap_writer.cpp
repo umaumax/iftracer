@@ -85,6 +85,7 @@ bool MmapWriter::Close() {
     printf("[Close]\n");
     printf("file_offset_:%zu\n", file_offset_);
     printf("local_offset_:%zu\n", local_offset_);
+    printf("map_size_:%zu\n", map_size_);
   }
 
   if (msync(head_, local_offset_, MS_SYNC) != 0) {
