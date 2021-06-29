@@ -1,13 +1,13 @@
-#include <cstdint>
-#include <cstring>
-#include <string>
+#include "mmap_writer.hpp"
 
 #include <fcntl.h>
 #include <inttypes.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 
-#include "mmap_writer.hpp"
+#include <cstdint>
+#include <cstring>
+#include <string>
 
 bool MmapWriter::IsOpen() { return is_open_; }
 
