@@ -122,7 +122,7 @@ bool MmapWriter::Flush(size_t size) {
   }
   if (verbose_) {
     printf("[Flush]\n");
-    printf("aligend_size:%" PRId64 "\n", aligend_size);
+    printf("aligned_size:%zu\n", aligned_size);
   }
   if (msync(head_, aligend_size, MS_SYNC) != 0) {
     AddErrorMessageWithErrono("Flush(): msync():", errno);
