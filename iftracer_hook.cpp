@@ -55,8 +55,8 @@ size_t get_init_buffer_size() {
   if (env != nullptr) {
     init_buffer_size = 4096 * std::stoi(std::string(env));
   }
-  if (init_buffer_size < 4096 * 4 * 2) {
-    init_buffer_size = 4096 * 4 * 2;
+  if (init_buffer_size < 4096 * 4 * 1024) {
+    init_buffer_size = 4096 * 4 * 1024;
   }
   return init_buffer_size;
 }
