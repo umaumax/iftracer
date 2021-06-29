@@ -1,10 +1,10 @@
 #ifndef MMAP_WRITER_HPP_INCLUDED
 #define MMAP_WRITER_HPP_INCLUDED
 
+#include <unistd.h>
+
 #include <cstdint>
 #include <string>
-
-#include <unistd.h>
 
 class MmapWriter {
  public:
