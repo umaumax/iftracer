@@ -23,7 +23,7 @@ class MmapWriter {
   bool PrepareWrite(size_t size);
   void Seek(size_t n);
   std::string GetErrorMessage();
-  uint8_t* Cursor();
+  uint8_t* Cursor() { return cursor_; }
 
   // private:
   void AddErrorMessage(std::string message);

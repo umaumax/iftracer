@@ -182,7 +182,6 @@ std::string MmapWriter::GetErrorMessage() {
   error_message_.clear();
   return tmp;
 }
-uint8_t* MmapWriter::Cursor() { return cursor_; }
 
 void MmapWriter::AddErrorMessage(std::string message) {
   error_message_ = message + error_message_;
