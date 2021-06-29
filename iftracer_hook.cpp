@@ -76,6 +76,22 @@ size_t get_extend_buffer_size() {
   }
   return extend_buffer_size;
 }
+size_t get_flush_buffer_size() {
+  static size_t flush_buffer_size = 0;
+  if (flush_buffer_size != 0) {
+    return flush_buffer_size;
+  }
+
+  char* env;
+  env = getenv("IFTRACER_FLUSH_BUFFER");
+  if (env != nullptr) {
+    flush_buffer_size = 4096 * std::stoi(std::string(env));
+  }
+  if (flush_buffer_size < 4096 * 4 * 4) {
+    flush_buffer_size = 4096 * 4 * 4;
+  }
+  return flush_buffer_size;
+}
 }  // namespace
 
 class Logger {
@@ -99,6 +115,7 @@ class Logger {
   void ExternalProcess(uintptr_t event, const std::string& text);
 
   MmapWriter mw_;
+  size_t flush_buffer_size_;
 };
 
 namespace {
@@ -140,6 +157,7 @@ void Logger::Initialize(int64_t offset) {
   if (!ret) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
   }
+  flush_buffer_size_ = get_flush_buffer_size();
 }
 void Logger::Finalize() {
   bool ret = mw_.Close();
@@ -274,7 +292,7 @@ void Logger::Exit(void* func_address, void* call_site) {
     }
     InternalProcessExit();
   } else {
-    size_t flush_buffer_size = 4096 * 4;
+    size_t flush_buffer_size = flush_buffer_size_;
     if (mw_.BufferedDataSize() >= flush_buffer_size) {
       InternalProcessEnter();
       mw_.Flush(flush_buffer_size);
