@@ -19,6 +19,7 @@ class MmapWriter {
   bool Open(std::string filename, size_t size, int64_t offset);
   bool Close();
   bool Flush(size_t size);
+  size_t BufferedDataSize() { return local_offset_; };
   bool CheckCapacity(size_t size);
   bool PrepareWrite(size_t size);
   void Seek(size_t n);

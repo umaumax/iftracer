@@ -274,7 +274,12 @@ void Logger::Exit(void* func_address, void* call_site) {
     }
     InternalProcessExit();
   } else {
-    mw_.Flush(4096 * 4);
+    size_t flush_buffer_size = 4096 * 4;
+    if (mw_.BufferedDataSize() >= flush_buffer_size) {
+      InternalProcessEnter();
+      mw_.Flush(flush_buffer_size);
+      InternalProcessExit();
+    }
   }
 
   // TODO: add cpu clock pattern
