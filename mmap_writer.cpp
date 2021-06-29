@@ -14,7 +14,7 @@ bool MmapWriter::IsOpen() { return is_open_; }
 // offset == 0: truncate file
 // offset  < 0: seek to last offset, extend size
 bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
-  if (IsOpen()) {
+  if (debug_ && IsOpen()) {
     AddErrorMessage("Open(): already open map");
     return false;
   }
@@ -77,7 +77,7 @@ bool MmapWriter::Open(std::string filename, size_t size, int64_t offset = 0) {
   return true;
 }
 bool MmapWriter::Close() {
-  if (!IsOpen()) {
+  if (debug_ && !IsOpen()) {
     AddErrorMessage("Close(): no opening map:");
     return false;
   }
@@ -119,7 +119,7 @@ bool MmapWriter::Flush(size_t size) {
   if (aligned_size == 0) {
     return false;
   }
-  if (!IsOpen()) {
+  if (debug_ && !IsOpen()) {
     AddErrorMessage("Flush(): no opening map:");
     return false;
   }

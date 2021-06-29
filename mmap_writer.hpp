@@ -29,8 +29,14 @@ class MmapWriter {
   void AddErrorMessage(std::string message);
   void AddErrorMessageWithErrono(std::string message, int errno_value);
 
-  size_t extend_size_       = 4096 * 4;
-  const bool verbose_       = false;
+  const bool verbose_ = false;
+#ifdef IFTRACE_DEBUG
+  const bool debug_ = true;
+#else
+  const bool debug_ = false;
+#endif
+  size_t extend_size_ = 4096 * 4;
+
   std::string filename_     = "";
   bool is_open_             = false;
   int fd_                   = 0;
