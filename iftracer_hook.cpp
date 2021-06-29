@@ -75,7 +75,7 @@ size_t get_extend_buffer_size() {
   }
   return extend_buffer_size;
 }
-}
+}  // namespace
 
 class Logger {
  public:
