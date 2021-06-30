@@ -8,8 +8,12 @@ link iftracer library and build target application with `-finstrument-functions`
 if you use `cmake`, just add below script to `CMakeLists.txt`
 ``` cmake
 add_subdirectory(iftracer)
-set(CMAKE_CXX_FLAGS "-std=c++11 -lpthread -ggdb3 -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++ ${CMAKE_CXX_FLAGS}")
+set(IFTRACER_COMPILE_FLAGS "-std=c++11 -lpthread -ggdb3 -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
+set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_FLAGS "${IFTRACER_COMPILE_FLAGS}")
 target_link_libraries(${PROJECT_NAME} iftracer)
+
+# if there are lots of cmake target, easily way is just add below code
+include_directories(./iftracer)
 ```
 
 depending on the situation, you can add also `-finstrument-functions-exclude-function-list=__mangled_func_name` option
@@ -28,6 +32,11 @@ void task2() {
   auto scope_logger = iftracer::ScopeLogger("doing task2");
   // do something
   scope_logger.Exit();
+}
+
+void task3() {
+  auto scope_logger = iftracer::ScopeLogger("doing task3");
+  // do something
 }
 ```
 

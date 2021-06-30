@@ -17,9 +17,9 @@ MMAP_WRITER_TEST := mmap_writer_test
 MMAP_WRITER_TEST_SRCS := mmap_writer_test.cpp
 MMAP_WRITER_TEST_OBJ  := mmap_writer_test.o
 
-INSTRUMENT_FLAGS := -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++
+APP_FLAGS := -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++
 ifneq ($(filter clang%,$(CXX)),)
-	INSTRUMENT_FLAGS := -finstrument-functions-after-inlining
+	APP_FLAGS := -DIFTRACER_ENABLE_API -finstrument-functions-after-inlining
 endif
 
 .SUFFIXES: .cpp .c .o
@@ -32,7 +32,7 @@ $(APP): $(APP_OBJ) $(LIB_OBJ)
 	$(CXX) $^ $(CXXFLAGS) -lpthread -ggdb3 -o $(APP)
 
 $(APP_OBJ): $(APP_SRCS)
-	$(CXX) $^ $(CXXFLAGS) -c -ggdb3 -o $(APP_OBJ) $(INSTRUMENT_FLAGS)
+	$(CXX) $^ $(CXXFLAGS) -c -ggdb3 -o $(APP_OBJ) $(APP_FLAGS)
 
 $(MMAP_WRITER_TEST): $(MMAP_WRITER_TEST_OBJ) $(LIB_OBJ)
 	$(CXX) $^ $(CXXFLAGS) -ggdb3 -o $(MMAP_WRITER_TEST)

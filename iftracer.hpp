@@ -5,8 +5,17 @@
 #include <string>
 
 namespace iftracer {
+#ifdef IFTRACER_ENABLE_API
 void ExternalProcessEnter(const std::string& text);
 void ExternalProcessExit(const std::string& text);
+#else
+void ExternalProcessEnter(const std::string& text) {
+  // do nothing used only for passing build
+}
+void ExternalProcessExit(const std::string& text) {
+  // do nothing used only for passing build
+}
+#endif
 
 class ScopeLogger {
  public:
