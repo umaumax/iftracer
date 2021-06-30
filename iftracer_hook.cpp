@@ -266,7 +266,7 @@ void Logger::ExternalProcess(uintptr_t event, const std::string& text) {
 
   size_t text_size           = text.size();
   uintptr_t masked_text_size = set_flag_to_address(
-      reinterpret_cast<uintptr_t>(text_size), external_use_flag);
+      reinterpret_cast<uintptr_t>(event | text_size), external_use_flag);
   *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_text_size;
   mw_.Seek(sizeof(uintptr_t));
 
