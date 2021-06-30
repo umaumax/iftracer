@@ -61,6 +61,8 @@ dsymutil iftracer_main
 * `IFTRACER_EXTEND_BUFFER=8`: 各スレッドの拡張バッファサイズ(4KB単位)(デフォルト: 4KB*8=32KB)
   * トレースの途中で内部処理に時間がかかってしまうので、なるべく小さな単位を指定する
 * `IFTRACER_FLUSH_BUFFER=16`: 各スレッドのフラッシュ(`munmap`)するバッファサイズのしきい値(4KB単位)(デフォルト: 4KB*16=64KB)
+* `IFTRACER_OUTPUT_DIRECTORY=./`: トレースログの出力先のディレクトリ
+* `IFTRACER_OUTPUT_FILE_PREFIX=iftracer.out.`: トレースログの出力ファイルのprefix
 
 ## 個別に関数をフィルタする例
 ``` bash

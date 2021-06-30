@@ -92,6 +92,36 @@ size_t get_flush_buffer_size() {
   }
   return flush_buffer_size;
 }
+std::string get_output_directory() {
+  static std::string output_directory = "";
+  if (!output_directory.empty()) {
+    return output_directory;
+  }
+
+  char* env;
+  env = getenv("IFTRACER_OUTPUT_DIRECTORY");
+  if (env != nullptr) {
+    output_directory = std::string(env);
+  } else {
+    output_directory = "./";
+  }
+  return output_directory;
+}
+std::string get_output_file_prefix() {
+  static std::string output_file_prefix = "";
+  if (!output_file_prefix.empty()) {
+    return output_file_prefix;
+  }
+
+  char* env;
+  env = getenv("IFTRACER_OUTPUT_FILE_PREFIX");
+  if (env != nullptr) {
+    output_file_prefix = std::string(env);
+  } else {
+    output_file_prefix = "iftracer.out.";
+  }
+  return output_file_prefix;
+}
 }  // namespace
 
 class Logger {
@@ -147,7 +177,8 @@ Logger::~Logger() {
 };
 
 void Logger::Initialize(int64_t offset) {
-  std::string filename = std::string("iftracer.out.") + std::to_string(tid);
+  std::string filename = get_output_directory() + "/" +
+                         get_output_file_prefix() + std::to_string(tid);
   mw_.SetExtendSize(get_extend_buffer_size());
   size_t buffer_size = 4096 * 4;  // used only for last extend
   if (offset >= 0) {
