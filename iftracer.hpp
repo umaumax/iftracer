@@ -24,7 +24,7 @@ class ScopeLogger {
   __attribute__((no_instrument_function)) void Enter(const std::string& text) {
     assert(!entered_flag_);
     entered_flag_ = true;
-    text_         = text;
+    text_ = text;
     iftracer::ExternalProcessEnter(text);
   }
 
