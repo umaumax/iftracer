@@ -4,18 +4,29 @@
 #include <iostream>
 #include <thread>
 
+#include "iftracer.hpp"
+
 class Animal {
  public:
   Animal() {}
   ~Animal() {}
 };
 
-void piyo() { printf("piyo\n"); }
+void piyo() {
+  auto scope_logger = iftracer::ScopeLogger();
+  scope_logger.Enter("piyo function called!");
+  printf("piyo\n");
+  scope_logger.Exit();
+}
 void hoge() {
   printf("hoge\n");
   piyo();
 }
-void fuga() { printf("fuga\n"); }
+void fuga() {
+  auto scope_logger = iftracer::ScopeLogger("fuga function called!");
+  printf("fuga\n");
+  scope_logger.Exit();
+}
 
 Animal global_animal;
 
@@ -25,6 +36,9 @@ int main() {
   snprintf(buf, sizeof(buf), "snprintf sample");
   std::cout << "snprintf:" << buf << std::endl;
 
+  hoge();
+  fuga();
+
   for (int i = 0; i < 10; i++) {
     std::thread th([&] {
       hoge();
@@ -33,7 +47,7 @@ int main() {
       piyo();
       fuga();
     });
-    for (int i = 0; i < 1000; i++) {
+    for (int i = 0; i < 10; i++) {
       printf("hoge:%p\n", hoge);
       printf("fuga:%p\n", fuga);
       printf("piyo:%p\n", piyo);

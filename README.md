@@ -14,6 +14,23 @@ target_link_libraries(${PROJECT_NAME} iftracer)
 
 depending on the situation, you can add also `-finstrument-functions-exclude-function-list=__mangled_func_name` option
 
+### how to use API
+``` cpp
+#include "iftracer.hpp"
+
+void task1() {
+  auto scope_logger = iftracer::ScopeLogger();
+  scope_logger.Enter("doing task1");
+  // do something
+  scope_logger.Exit();
+}
+void task2() {
+  auto scope_logger = iftracer::ScopeLogger("doing task2");
+  // do something
+  scope_logger.Exit();
+}
+```
+
 ### how to run example
 #### cmake
 ``` bash

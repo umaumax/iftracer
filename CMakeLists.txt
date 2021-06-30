@@ -11,6 +11,7 @@ set(${PROJECT_NAME}_LIB_SRCS iftracer_hook.cpp mmap_writer.cpp)
 add_library(${PROJECT_NAME} ${${PROJECT_NAME}_LIB_SRCS})
 # target_link_libraries(${PROJECT_NAME}
 # )
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-ggdb3 -O3")
 
 ####

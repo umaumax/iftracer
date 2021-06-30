@@ -136,13 +136,14 @@ class Logger {
   static const int64_t TRUNCATE = 0;
   static const int64_t LAST     = -1;
 
+  void ExternalProcessEnter(const std::string& text);
+  void ExternalProcessExit(const std::string& text);
+  void ExternalProcess(uintptr_t event, const std::string& text);
+
  private:
   void InternalProcessEnter();
   void InternalProcessExit();
   void InternalProcess(uintptr_t event);
-  void ExternalProcessEnter(const std::string& text);
-  void ExternalProcessExit(const std::string& text);
-  void ExternalProcess(uintptr_t event, const std::string& text);
 
   MmapWriter mw_;
   size_t flush_buffer_size_;
@@ -218,6 +219,18 @@ constexpr uintptr_t internal_process_exit  = 0x1UL << (pointer_size - 3);
 constexpr uintptr_t external_process_enter = 0x0UL << (pointer_size - 3);
 constexpr uintptr_t external_process_exit  = 0x1UL << (pointer_size - 3);
 }  // namespace
+
+namespace iftracer {
+void ExternalProcessEnter(const std::string& text);
+void ExternalProcessExit(const std::string& text);
+
+void ExternalProcessEnter(const std::string& text) {
+  logger.ExternalProcessEnter(text);
+}
+void ExternalProcessExit(const std::string& text) {
+  logger.ExternalProcessExit(text);
+}
+}
 
 void Logger::InternalProcessEnter() { InternalProcess(internal_process_enter); }
 void Logger::InternalProcessExit() { InternalProcess(internal_process_exit); }
