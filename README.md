@@ -22,22 +22,63 @@ depending on the situation, you can add also `-finstrument-functions-exclude-fun
 ``` cpp
 #include "iftracer.hpp"
 
-void task1() {
-  auto scope_logger = iftracer::ScopeLogger();
-  scope_logger.Enter("doing task1");
+// recommendation way
+void task() {
+  auto scope_logger = iftracer::ScopeLogger("eating 🍣");
   // do something
-  scope_logger.Exit();
 }
-void task2() {
-  auto scope_logger = iftracer::ScopeLogger("doing task2");
+
+void task(int x) {
+  iftracer::ScopeLogger scope_logger;
+  switch (x) {
+  case 0:
+    scope_logger.Enter("x is 0");
+    break;
+  case 1:
+    scope_logger.Enter("x is 1");
+    break;
+  default:
+    scope_logger.Enter("invalid x");
+    break;
+  }
+}
+
+void task() {
+  auto scope_logger = iftracer::ScopeLogger("playing 🎮");
   // do something
   scope_logger.Exit();
 }
 
-void task3() {
-  auto scope_logger = iftracer::ScopeLogger("doing task3");
+// bad examplel
+void task() {
+  auto scope_logger1 = iftracer::ScopeLogger();
+  auto scope_logger2 = iftracer::ScopeLogger();
+  scope_logger1.Enter("doing task1");
   // do something
+  scope_logger2.Enter("doing task2");
+  // do something
+  // order must be like a stack!!
+  scope_logger1.Exit(); // reverse order!!
+  scope_logger2.Exit(); // reverse order!!;
 }
+
+// bad examplel
+// unintentionally causes two destructor calls
+void task() {
+  std::vector<iftracer::ScopeLogger> scope_loggers;
+  scope_loggers.emplace_back(iftracer::ScopeLogger("hoge function called!"));
+}
+
+```
+
+#### bad examples
+下記では、意図せずにデストラクタが呼ばれるので、`iftracer::ScopeLogger`をコピー不可能にすることで根本的な対策とした
+``` cpp
+iftracer::ScopeLogger scope_logger;
+scope_logger = std::move(iftracer::ScopeLogger("hoge function called!"));
+
+iftracer::ScopeLogger scope_logger;
+scope_logger = iftracer::ScopeLogger("hoge function called!");
 ```
 
 ### how to run example

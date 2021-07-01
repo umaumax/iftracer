@@ -19,6 +19,9 @@ void ExternalProcessExit(const std::string& text) {
 
 class ScopeLogger {
  public:
+  // non copyable
+  ScopeLogger& operator=(const ScopeLogger&) = delete;
+
   __attribute__((no_instrument_function)) ScopeLogger() {}
   __attribute__((no_instrument_function)) explicit ScopeLogger(
       const std::string& text) {
