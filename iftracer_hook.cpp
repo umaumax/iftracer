@@ -151,7 +151,7 @@ class Logger {
 
 namespace {
 thread_local pid_t tid = gettid();
-// destructors which are called after this logger destructor cannot access this logger variable
+// WARN: destructors which are called after this logger destructor cannot access this logger variable
 thread_local Logger logger(Logger::TRUNCATE);
 // I don't know why Apple M1 don't call logger destructor of main thread
 #ifdef __APPLE__
@@ -230,7 +230,7 @@ void ExternalProcessEnter(const std::string& text) {
 void ExternalProcessExit(const std::string& text) {
   logger.ExternalProcessExit(text);
 }
-}
+}  // namespace iftracer
 
 void Logger::InternalProcessEnter() { InternalProcess(internal_process_enter); }
 void Logger::InternalProcessExit() { InternalProcess(internal_process_exit); }
