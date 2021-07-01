@@ -12,6 +12,7 @@ __attribute__((init_priority(101)))
 FastLoggerCaller fast_logger_caller(tls_init_trigger);
 }  // namespace
 
+#include <inttypes.h>
 #include <sys/syscall.h>
 
 #include <chrono>
@@ -40,6 +41,12 @@ pid_t __attribute__((no_instrument_function)) gettid() {
 #else
 #error "Non supported os"
 #endif
+
+uint64_t get_current_micro_timestamp() {
+  return std::chrono::duration_cast<std::chrono::microseconds>(
+             std::chrono::system_clock::now().time_since_epoch())
+      .count();
+}
 }  // namespace
 
 namespace {
@@ -150,7 +157,19 @@ class Logger {
 };
 
 namespace {
-thread_local pid_t tid = gettid();
+thread_local pid_t tid              = gettid();
+thread_local uint64_t pre_timestamp = get_current_micro_timestamp();
+
+int32_t get_current_micro_timestamp_diff() {
+  uint64_t timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
+                           std::chrono::system_clock::now().time_since_epoch())
+                           .count();
+  constexpr uint64_t timestamp_diff_offset = 1;
+  uint64_t timestamp_diff = timestamp - pre_timestamp + timestamp_diff_offset;
+  pre_timestamp           = timestamp;
+  return static_cast<int32_t>(timestamp_diff);
+}
+
 // WARN: destructors which are called after this logger destructor cannot access this logger variable
 thread_local Logger logger(Logger::TRUNCATE);
 // I don't know why Apple M1 don't call logger destructor of main thread
@@ -199,23 +218,23 @@ void Logger::Finalize() {
 }
 
 namespace {
-constexpr int64_t pointer_size        = sizeof(uintptr_t) * 8;
-constexpr uintptr_t flag_mask         = (0x1UL << (pointer_size - 2)) - 1;
-constexpr uintptr_t enter_flag        = 0x0UL << (pointer_size - 2);
-constexpr uintptr_t exit_flag         = 0x1UL << (pointer_size - 2);
+constexpr int64_t pointer_size = sizeof(uintptr_t) * 8;
+constexpr uintptr_t flag_mask  = (0x1UL << (pointer_size - 2)) - 1;
+constexpr uintptr_t enter_flag = 0x0UL << (pointer_size - 2);
+// constexpr uintptr_t exit_flag         = 0x1UL << (pointer_size - 2);
 constexpr uintptr_t internal_use_flag = 0x2UL << (pointer_size - 2);
 constexpr uintptr_t external_use_flag = 0x3UL << (pointer_size - 2);
 uintptr_t set_flag_to_address(uintptr_t address, uintptr_t flag) {
   return (address & flag_mask) | flag;
 }
-uint64_t get_current_micro_timestamp() {
-  return std::chrono::duration_cast<std::chrono::microseconds>(
-             std::chrono::system_clock::now().time_since_epoch())
-      .count();
-}
+
+constexpr uintptr_t internal_process_enter_exit_mask = 0x1UL
+                                                       << (pointer_size - 3);
 constexpr uintptr_t internal_process_enter = 0x0UL << (pointer_size - 3);
 constexpr uintptr_t internal_process_exit  = 0x1UL << (pointer_size - 3);
 
+constexpr uintptr_t external_process_enter_exit_mask = 0x1UL
+                                                       << (pointer_size - 3);
 constexpr uintptr_t external_process_enter = 0x0UL << (pointer_size - 3);
 constexpr uintptr_t external_process_exit  = 0x1UL << (pointer_size - 3);
 }  // namespace
@@ -238,20 +257,28 @@ void Logger::InternalProcessExit() { InternalProcess(internal_process_exit); }
 void Logger::InternalProcess(uintptr_t event) {
 #ifdef IFTRACE_TEXT_FORMAT
 #else
-  // TODO: add cpu clock pattern
-  uint64_t micro_since_epoch = get_current_micro_timestamp();
-  int max_n                  = 256;
+  int32_t micro_duration_diff = get_current_micro_timestamp_diff();
+  int max_n                   = 256;
   if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
     return;
   }
 
-  *reinterpret_cast<uint64_t*>(mw_.Cursor()) = micro_since_epoch;
-  mw_.Seek(sizeof(uint64_t));
-  uintptr_t masked_func_address = set_flag_to_address(
-      reinterpret_cast<uintptr_t>(event), internal_use_flag);
-  *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_func_address;
-  mw_.Seek(sizeof(uintptr_t));
+  if ((event & internal_process_enter_exit_mask) == internal_process_enter) {
+    *reinterpret_cast<int32_t*>(mw_.Cursor()) = micro_duration_diff;
+    mw_.Seek(sizeof(int32_t));
+    uintptr_t masked_func_address = set_flag_to_address(
+        reinterpret_cast<uintptr_t>(event), internal_use_flag);
+    *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_func_address;
+    mw_.Seek(sizeof(uintptr_t));
+  } else if ((event & internal_process_enter_exit_mask) ==
+             internal_process_exit) {
+    *reinterpret_cast<int32_t*>(mw_.Cursor()) = -micro_duration_diff;
+    mw_.Seek(sizeof(int32_t));
+  } else {
+    fprintf(stderr, "invalid internal event flag %" PRIxPTR "\n", event);
+    abort();
+  }
 #endif
 }
 
@@ -265,27 +292,35 @@ void Logger::ExternalProcessExit(const std::string& text) {
 void Logger::ExternalProcess(uintptr_t event, const std::string& text) {
 #ifdef IFTRACE_TEXT_FORMAT
 #else
-  // TODO: add cpu clock pattern
-  uint64_t micro_since_epoch = get_current_micro_timestamp();
-  constexpr int align_buffer = 8;
-  int max_n = sizeof(uint64_t) + sizeof(uintptr_t) + text.size() + align_buffer;
+  int32_t micro_duration_diff = get_current_micro_timestamp_diff();
+  constexpr int align_buffer  = 8;
+  int max_n = sizeof(int32_t) + sizeof(uintptr_t) + text.size() + align_buffer;
   if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
     return;
   }
 
-  *reinterpret_cast<uint64_t*>(mw_.Cursor()) = micro_since_epoch;
-  mw_.Seek(sizeof(uint64_t));
+  if ((event & external_process_enter_exit_mask) == external_process_enter) {
+    *reinterpret_cast<int32_t*>(mw_.Cursor()) = micro_duration_diff;
+    mw_.Seek(sizeof(int32_t));
 
-  size_t text_size           = text.size();
-  uintptr_t masked_text_size = set_flag_to_address(
-      reinterpret_cast<uintptr_t>(event | text_size), external_use_flag);
-  *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_text_size;
-  mw_.Seek(sizeof(uintptr_t));
+    size_t text_size           = text.size();
+    uintptr_t masked_text_size = set_flag_to_address(
+        reinterpret_cast<uintptr_t>(event | text_size), external_use_flag);
+    *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_text_size;
+    mw_.Seek(sizeof(uintptr_t));
 
-  text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
-  size_t aligned_text_size = (((text_size) + (8 - 1)) & ~(8 - 1));
-  mw_.Seek(aligned_text_size);
+    text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
+    size_t aligned_text_size = (((text_size) + (8 - 1)) & ~(8 - 1));
+    mw_.Seek(aligned_text_size);
+  } else if ((event & external_process_enter_exit_mask) ==
+             external_process_exit) {
+    *reinterpret_cast<int32_t*>(mw_.Cursor()) = -micro_duration_diff;
+    mw_.Seek(sizeof(int32_t));
+  } else {
+    fprintf(stderr, "invalid external event flag %" PRIxPTR "\n", event);
+    abort();
+  }
 #endif
 }
 
@@ -302,21 +337,20 @@ void Logger::Enter(void* func_address, void* call_site) {
     InternalProcessExit();
   }
 
-  // TODO: add cpu clock pattern
-  uint64_t micro_since_epoch = get_current_micro_timestamp();
   // arm thumb mode use LSB
   // Odd addresses for Thumb mode, and even addresses for ARM mode.
   void* normalized_func_address =
       reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(func_address) & (~1));
 #ifdef IFTRACE_TEXT_FORMAT
-  // TODO: add binary write pattern
+  uint64_t micro_since_epoch = get_current_micro_timestamp();
   int n = snprintf(reinterpret_cast<char*>(mw_.Cursor()), max_n,
                    "%d %" PRIu64 " enter %p %p\n", tid, micro_since_epoch,
                    call_site, normalized_func_address);
   mw_.Seek(n);
 #else
-  *reinterpret_cast<uint64_t*>(mw_.Cursor()) = micro_since_epoch;
-  mw_.Seek(sizeof(uint64_t));
+  int32_t micro_duration_diff = get_current_micro_timestamp_diff();
+  *reinterpret_cast<int32_t*>(mw_.Cursor()) = micro_duration_diff;
+  mw_.Seek(sizeof(int32_t));
   uintptr_t masked_func_address = set_flag_to_address(
       reinterpret_cast<uintptr_t>(normalized_func_address), enter_flag);
   *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_func_address;
@@ -344,23 +378,18 @@ void Logger::Exit(void* func_address, void* call_site) {
     }
   }
 
-  // TODO: add cpu clock pattern
-  uint64_t micro_since_epoch = get_current_micro_timestamp();
+#ifdef IFTRACE_TEXT_FORMAT
   void* normalized_func_address =
       reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(func_address) & (~1));
-#ifdef IFTRACE_TEXT_FORMAT
-  // TODO: add binary write pattern
+  uint64_t micro_since_epoch = get_current_micro_timestamp();
   int n = snprintf(reinterpret_cast<char*>(mw_.Cursor()), max_n,
                    "%d %" PRIu64 " exit %p %p\n", tid, micro_since_epoch,
                    call_site, normalized_func_address);
   mw_.Seek(n);
 #else
-  *reinterpret_cast<uint64_t*>(mw_.Cursor()) = micro_since_epoch;
-  mw_.Seek(sizeof(uint64_t));
-  uintptr_t masked_func_address = set_flag_to_address(
-      reinterpret_cast<uintptr_t>(normalized_func_address), exit_flag);
-  *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_func_address;
-  mw_.Seek(sizeof(uintptr_t));
+  int32_t micro_duration_diff = get_current_micro_timestamp_diff();
+  *reinterpret_cast<int32_t*>(mw_.Cursor()) = -micro_duration_diff;
+  mw_.Seek(sizeof(int32_t));
 #endif
 }
 

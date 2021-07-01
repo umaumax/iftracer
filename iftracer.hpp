@@ -36,20 +36,18 @@ class ScopeLogger {
   __attribute__((no_instrument_function)) void Enter(const std::string& text) {
     assert(!entered_flag_);
     entered_flag_ = true;
-    text_ = text;
     iftracer::ExternalProcessEnter(text);
   }
 
   __attribute__((no_instrument_function)) void Exit() {
     assert(entered_flag_);
-    iftracer::ExternalProcessExit(text_);
+    iftracer::ExternalProcessExit("");
     entered_flag_ = false;
   }
 
  private:
-  std::string text_;
   bool entered_flag_ = false;
 };
-}
+}  // namespace iftracer
 
 #endif  // IFTRACER_HPP_INCLUDED
