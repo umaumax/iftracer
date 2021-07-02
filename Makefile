@@ -1,5 +1,8 @@
-CC := gcc
-CXX := g++
+CC := $(if $(CC),$(CC),gcc)
+CXX := $(if $(CXX),$(CXX),g++)
+AR := $(if $(AR),$(AR),ar)
+STRIP := $(if $(STRIP),$(STRIP),strip)
+RANLIB := $(if $(RANLIB),$(RANLIB),ranlib)
 CFLAGS := -std=c++11 -Wall -O3
 CXXFLAGS := -std=c++11 -Wall -O3
 
