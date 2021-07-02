@@ -94,8 +94,8 @@ size_t get_flush_buffer_size() {
   if (env != nullptr) {
     flush_buffer_size = 4096 * std::stoi(std::string(env));
   }
-  if (flush_buffer_size < 4096 * 4 * 4) {
-    flush_buffer_size = 4096 * 4 * 4;
+  if (flush_buffer_size < 4096 * 4 * 16) {
+    flush_buffer_size = 4096 * 4 * 16;
   }
   return flush_buffer_size;
 }
