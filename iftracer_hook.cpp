@@ -2,7 +2,8 @@ thread_local int tls_init_trigger = 1;
 class FastLoggerCaller {
  public:
   FastLoggerCaller(int dummy) {}
-  // use blank destructor for supressing fast_logger_caller variable by -O3 optimization
+  // use blank destructor for supressing fast_logger_caller variable
+  // by -O3 optimization
   ~FastLoggerCaller() {}
 };
 namespace {
@@ -18,6 +19,7 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 
 #include <chrono>
 #include <cstring>
+#include <functional>
 #include <iostream>
 #include <string>
 
