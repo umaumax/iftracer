@@ -8,7 +8,7 @@ link iftracer library and build target application with `-finstrument-functions`
 if you use `cmake`, just add below script to `CMakeLists.txt`
 ``` cmake
 add_subdirectory(iftracer)
-set(IFTRACER_COMPILE_FLAGS "-std=c++11 -lpthread -ggdb3 -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
+set(IFTRACER_COMPILE_FLAGS "-std=c++11 -lpthread -g1 -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
 set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_FLAGS "${IFTRACER_COMPILE_FLAGS}")
 target_link_libraries(${PROJECT_NAME} iftracer)
 
@@ -17,6 +17,13 @@ include_directories(./iftracer)
 ```
 
 depending on the situation, you can add also `-finstrument-functions-exclude-function-list=__mangled_func_name` option
+
+Option `-g1` is sufficient if you want to know the location of the file by objdump.
+
+e.g. `-ggdb3` output file size is 12MB, but `-g1` is 3MB
+
+`objdump` takes a lot of time if a target file size is big.
+This is especially noticeable with cross objdump(e.g. arm-linux-gnueabihf-objdump).
 
 ### how to use API
 ``` cpp

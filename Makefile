@@ -32,16 +32,16 @@ all: $(APP)
 # all: depend $(APP)
 
 $(APP): $(APP_OBJ) $(LIB_OBJ)
-	$(CXX) $^ $(CXXFLAGS) -lpthread -ggdb3 -o $(APP)
+	$(CXX) $^ $(CXXFLAGS) -lpthread -g1 -o $(APP)
 
 $(APP_OBJ): $(APP_SRCS)
-	$(CXX) $^ $(CXXFLAGS) -c -ggdb3 -o $(APP_OBJ) $(APP_FLAGS)
+	$(CXX) $^ $(CXXFLAGS) -c -g1 -o $(APP_OBJ) $(APP_FLAGS)
 
 $(MMAP_WRITER_TEST): $(MMAP_WRITER_TEST_OBJ) $(LIB_OBJ)
-	$(CXX) $^ $(CXXFLAGS) -ggdb3 -o $(MMAP_WRITER_TEST)
+	$(CXX) $^ $(CXXFLAGS) -g3 -o $(MMAP_WRITER_TEST)
 
 .cpp.o:
-	$(CXX) $(CXXFLAGS) -c -ggdb3 $<
+	$(CXX) $(CXXFLAGS) -c -g3 $<
 
 .PHONY: clean
 clean:

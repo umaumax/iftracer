@@ -12,7 +12,7 @@ add_library(${PROJECT_NAME} ${${PROJECT_NAME}_LIB_SRCS})
 # target_link_libraries(${PROJECT_NAME}
 # )
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-ggdb3 -O3")
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-g3 -O3")
 
 ####
 # example iftracer_main app
@@ -24,9 +24,9 @@ if(IFTRACER_EXAMPLE)
     ${PROJECT_NAME}
     )
   if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    set_target_properties(${PROJECT_NAME}_main PROPERTIES COMPILE_FLAGS "-ggdb3 -O3 -DIFTRACER_ENABLE_API -finstrument-functions-after-inlining")
+    set_target_properties(${PROJECT_NAME}_main PROPERTIES COMPILE_FLAGS "-g1 -O3 -DIFTRACER_ENABLE_API -finstrument-functions-after-inlining")
   else()
-    set_target_properties(${PROJECT_NAME}_main PROPERTIES COMPILE_FLAGS "-ggdb3 -O3 -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
+    set_target_properties(${PROJECT_NAME}_main PROPERTIES COMPILE_FLAGS "-g1 -O3 -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
   endif()
   add_dependencies(${PROJECT_NAME}_main ${PROJECT_NAME})
 endif(IFTRACER_EXAMPLE)
