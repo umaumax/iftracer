@@ -133,6 +133,18 @@ std::string get_output_file_prefix() {
   }
   return output_file_prefix;
 }
+
+bool get_async_munmap_flag() {
+  static bool async_munmap_flag = []() {
+    char* env;
+    env = getenv("IFTRACER_ASYNC_MUNMAP");
+    if (env != nullptr) {
+      return std::stoi(env) != 0;
+    }
+    return false;
+  }();
+  return async_munmap_flag;
+}
 }  // namespace
 
 class Logger {
@@ -174,15 +186,22 @@ int32_t get_current_micro_timestamp_diff() {
   return static_cast<int32_t>(timestamp_diff);
 }
 
-iftracer::QueueWorker<std::tuple<void*, size_t>> munmaper(
-    1, [](std::tuple<void*, size_t> arg) {
-      void*& addr    = std::get<0>(arg);
-      size_t& length = std::get<1>(arg);
-      if (munmap(addr, length) != 0) {
-        // no error handling
-        return;
-      }
-    });
+std::function<int(void*, size_t)> get_async_munmap_func() {
+  static iftracer::QueueWorker<std::tuple<void*, size_t>> munmaper(
+      1, [](std::tuple<void*, size_t> arg) {
+        void*& addr    = std::get<0>(arg);
+        size_t& length = std::get<1>(arg);
+        if (munmap(addr, length) != 0) {
+          // no error handling
+          return;
+        }
+      });
+  return [](void* addr, size_t length) {
+    std::tuple<void*, size_t> arg = std::make_tuple(addr, length);
+    munmaper.Post(arg);
+    return 0;
+  };
+}
 
 // WARN: destructors which are called after this logger destructor cannot access this logger variable
 thread_local Logger logger(Logger::TRUNCATE);
@@ -223,11 +242,10 @@ void Logger::Initialize(int64_t offset) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
   }
   flush_buffer_size_ = get_flush_buffer_size();
-  mw_.SetMunmapHook([](void* addr, size_t length) {
-    std::tuple<void*, size_t> arg = std::make_tuple(addr, length);
-    munmaper.Post(arg);
-    return 0;
-  });
+  if (get_async_munmap_flag()) {
+    printf("hoge\n");
+    mw_.SetMunmapHook(get_async_munmap_func());
+  }
 }
 void Logger::Finalize() {
   bool ret = mw_.Close();
