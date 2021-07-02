@@ -127,10 +127,10 @@ bool MmapWriter::Flush(size_t size) {
     printf("[Flush]\n");
     printf("aligned_size:%zu\n", aligned_size);
   }
-  if (msync(head_, aligned_size, MS_SYNC) != 0) {
-    AddErrorMessageWithErrono("Flush(): msync():", errno);
-    return false;
-  }
+  // if (msync(head_, aligned_size, MS_SYNC) != 0) {
+  // AddErrorMessageWithErrono("Flush(): msync():", errno);
+  // return false;
+  // }
   if (munmap(head_, aligned_size) != 0) {
     AddErrorMessageWithErrono("Flush(): munmap():", errno);
     return false;
