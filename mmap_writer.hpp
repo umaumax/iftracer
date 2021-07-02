@@ -1,6 +1,7 @@
 #ifndef MMAP_WRITER_HPP_INCLUDED
 #define MMAP_WRITER_HPP_INCLUDED
 
+#include <sys/mman.h>
 #include <unistd.h>
 
 #include <cstdint>
@@ -25,6 +26,10 @@ class MmapWriter {
   void Seek(size_t n);
   std::string GetErrorMessage();
   uint8_t* Cursor() { return cursor_; }
+  void SetMunmapHook(
+      std::function<int(void* addr, size_t length)> munmap_func) {
+    munmap_func_ = munmap_func;
+  }
 
   // private:
   void AddErrorMessage(std::string message);
@@ -49,6 +54,8 @@ class MmapWriter {
   // NOTE: cursor_ = head_ + local_offset_
   uint8_t* cursor_           = nullptr;
   std::string error_message_ = "";
+
+  std::function<int(void* addr, size_t length)> munmap_func_ = munmap;
 
   // NOTE: below value is declared as field for initialize this class constructor timing
   const size_t PAGE_SIZE = getpagesize();

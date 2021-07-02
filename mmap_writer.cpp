@@ -2,7 +2,6 @@
 
 #include <fcntl.h>
 #include <inttypes.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 
 #include <cstdint>
@@ -131,7 +130,7 @@ bool MmapWriter::Flush(size_t size) {
   // AddErrorMessageWithErrono("Flush(): msync():", errno);
   // return false;
   // }
-  if (munmap(head_, aligned_size) != 0) {
+  if (munmap_func_(head_, aligned_size) != 0) {
     AddErrorMessageWithErrono("Flush(): munmap():", errno);
     return false;
   }

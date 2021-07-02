@@ -13,6 +13,7 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 }  // namespace
 
 #include <inttypes.h>
+#include <sys/mman.h>
 #include <sys/syscall.h>
 
 #include <chrono>
@@ -21,6 +22,7 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 #include <string>
 
 #include "mmap_writer.hpp"
+#include "queue_worker.hpp"
 
 extern "C" {
 void __cyg_profile_func_enter(void* func_address, void* call_site);
@@ -170,6 +172,16 @@ int32_t get_current_micro_timestamp_diff() {
   return static_cast<int32_t>(timestamp_diff);
 }
 
+iftracer::QueueWorker<std::tuple<void*, size_t>> munmaper(
+    1, [](std::tuple<void*, size_t> arg) {
+      void*& addr    = std::get<0>(arg);
+      size_t& length = std::get<1>(arg);
+      if (munmap(addr, length) != 0) {
+        // no error handling
+        return;
+      }
+    });
+
 // WARN: destructors which are called after this logger destructor cannot access this logger variable
 thread_local Logger logger(Logger::TRUNCATE);
 // I don't know why Apple M1 don't call logger destructor of main thread
@@ -209,6 +221,11 @@ void Logger::Initialize(int64_t offset) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
   }
   flush_buffer_size_ = get_flush_buffer_size();
+  mw_.SetMunmapHook([](void* addr, size_t length) {
+    std::tuple<void*, size_t> arg = std::make_tuple(addr, length);
+    munmaper.Post(arg);
+    return 0;
+  });
 }
 void Logger::Finalize() {
   bool ret = mw_.Close();
