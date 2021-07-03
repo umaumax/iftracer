@@ -56,88 +56,71 @@ uint64_t get_current_micro_timestamp() {
 namespace {
 // NOTE: Max OS X(page size is 16384B(16KB))
 size_t get_init_buffer_size() {
-  static size_t init_buffer_size = 0;
-  if (init_buffer_size != 0) {
+  static size_t init_buffer_size = []() {
+    size_t init_buffer_size = 0;
+    char* env               = getenv("IFTRACER_INIT_BUFFER");
+    if (env != nullptr) {
+      init_buffer_size = 4096 * std::stoi(std::string(env));
+    }
+    if (init_buffer_size < 4096 * 4 * 1024) {
+      init_buffer_size = 4096 * 4 * 1024;
+    }
     return init_buffer_size;
-  }
-
-  char* env;
-  env = getenv("IFTRACER_INIT_BUFFER");
-  if (env != nullptr) {
-    init_buffer_size = 4096 * std::stoi(std::string(env));
-  }
-  if (init_buffer_size < 4096 * 4 * 1024) {
-    init_buffer_size = 4096 * 4 * 1024;
-  }
+  }();
   return init_buffer_size;
 }
 size_t get_extend_buffer_size() {
-  static size_t extend_buffer_size = 0;
-  if (extend_buffer_size != 0) {
+  static size_t extend_buffer_size = []() {
+    size_t extend_buffer_size = 0;
+    char* env                 = getenv("IFTRACER_EXTEND_BUFFER");
+    if (env != nullptr) {
+      extend_buffer_size = 4096 * std::stoi(std::string(env));
+    }
+    if (extend_buffer_size < 4096 * 4 * 2) {
+      extend_buffer_size = 4096 * 4 * 2;
+    }
     return extend_buffer_size;
-  }
-
-  char* env;
-  env = getenv("IFTRACER_EXTEND_BUFFER");
-  if (env != nullptr) {
-    extend_buffer_size = 4096 * std::stoi(std::string(env));
-  }
-  if (extend_buffer_size < 4096 * 4 * 2) {
-    extend_buffer_size = 4096 * 4 * 2;
-  }
+  }();
   return extend_buffer_size;
 }
 size_t get_flush_buffer_size() {
-  static size_t flush_buffer_size = 0;
-  if (flush_buffer_size != 0) {
+  static size_t flush_buffer_size = []() {
+    size_t flush_buffer_size = 0;
+    char* env                = getenv("IFTRACER_FLUSH_BUFFER");
+    if (env != nullptr) {
+      flush_buffer_size = 4096 * std::stoi(std::string(env));
+    }
+    if (flush_buffer_size < 4096 * 4 * 16) {
+      flush_buffer_size = 4096 * 4 * 16;
+    }
     return flush_buffer_size;
-  }
-
-  char* env;
-  env = getenv("IFTRACER_FLUSH_BUFFER");
-  if (env != nullptr) {
-    flush_buffer_size = 4096 * std::stoi(std::string(env));
-  }
-  if (flush_buffer_size < 4096 * 4 * 16) {
-    flush_buffer_size = 4096 * 4 * 16;
-  }
+  }();
   return flush_buffer_size;
 }
 std::string get_output_directory() {
-  static std::string output_directory = "";
-  if (!output_directory.empty()) {
-    return output_directory;
-  }
-
-  char* env;
-  env = getenv("IFTRACER_OUTPUT_DIRECTORY");
-  if (env != nullptr) {
-    output_directory = std::string(env);
-  } else {
-    output_directory = "./";
-  }
+  static std::string output_directory = []() {
+    char* env = getenv("IFTRACER_OUTPUT_DIRECTORY");
+    if (env != nullptr) {
+      return std::string(env);
+    }
+    return std::string("./");
+  }();
   return output_directory;
 }
 std::string get_output_file_prefix() {
-  static std::string output_file_prefix = "";
-  if (!output_file_prefix.empty()) {
-    return output_file_prefix;
-  }
-
-  char* env;
-  env = getenv("IFTRACER_OUTPUT_FILE_PREFIX");
-  if (env != nullptr) {
-    output_file_prefix = std::string(env);
-  } else {
-    output_file_prefix = "iftracer.out.";
-  }
+  static std::string output_file_prefix = []() {
+    char* env = getenv("IFTRACER_OUTPUT_FILE_PREFIX");
+    if (env != nullptr) {
+      return std::string(env);
+    }
+    return std::string("iftracer.out.");
+  }();
   return output_file_prefix;
 }
 
 bool get_async_munmap_flag() {
   static bool async_munmap_flag = []() {
-    char* env;
-    env = getenv("IFTRACER_ASYNC_MUNMAP");
+    char* env = getenv("IFTRACER_ASYNC_MUNMAP");
     if (env != nullptr) {
       return std::stoi(env) != 0;
     }
