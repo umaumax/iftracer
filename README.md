@@ -2,10 +2,12 @@
 
 instrument-functions tracer
 
-## how to use
+## how to build with your app
 link iftracer library and build target application with `-finstrument-functions`
 
-if you use `cmake`, just add below script to `CMakeLists.txt`
+### cmake
+if you use `cmake`, just add below script to `CMakeLists.txt` and run `git clone https://github.com/umaumax/iftracer`
+
 ``` cmake
 add_subdirectory(iftracer)
 set(IFTRACER_COMPILE_FLAGS "-std=c++11 -lpthread -g1 -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
@@ -16,6 +18,22 @@ target_link_libraries(${PROJECT_NAME} iftracer)
 include_directories(./iftracer)
 ```
 
+### make
+``` make
+IFTRACER_APP_FLAGS := -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++
+ifneq ($(filter clang%,$(CXX)),)
+	IFTRACER_APP_FLAGS := -DIFTRACER_ENABLE_API -finstrument-functions-after-inlining
+endif
+$(CURDIR)/iftracer/libiftracer.a:
+	$(MAKE) -C ./iftracer
+
+CXXFLAGS := $(CXXFLAGS) -I$(CURDIR)/iftracer -g1 $(IFTRACER_APP_FLAGS)
+$(TARGET_APP): $(CURDIR)/iftracer/libiftracer.a
+```
+
+rewrite `$(TARGET_APP)` to your main application target
+
+### NOTE
 depending on the situation, you can add also `-finstrument-functions-exclude-function-list=__mangled_func_name` option
 
 Option `-g1` is sufficient if you want to know the location of the file by objdump.
@@ -25,7 +43,7 @@ e.g. `-ggdb3` output file size is 12MB, but `-g1` is 3MB
 `objdump` takes a lot of time if a target file size is big.
 This is especially noticeable with cross objdump(e.g. arm-linux-gnueabihf-objdump).
 
-### how to use API
+## how to use API
 ``` cpp
 #include "iftracer.hpp"
 
@@ -96,7 +114,7 @@ void task() {
 
 ```
 
-#### bad examples
+### bad examples
 下記では、意図せずにデストラクタが呼ばれるので、`iftracer::ScopeLogger`をコピー不可能にすることで根本的な対策とした
 ``` cpp
 iftracer::ScopeLogger scope_logger;
@@ -106,8 +124,8 @@ iftracer::ScopeLogger scope_logger;
 scope_logger = iftracer::ScopeLogger("hoge function called!");
 ```
 
-### how to run example
-#### cmake
+## how to run example
+### cmake
 ``` bash
 mkdir build
 cd build
@@ -127,7 +145,7 @@ CXX=g++-11 cmake .. -DIFTRACER_EXAMPLE=1
 dsymutil iftracer_main
 ```
 
-#### make
+### make
 ``` bash
 make
 make run
