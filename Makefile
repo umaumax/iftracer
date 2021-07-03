@@ -33,7 +33,6 @@ endif
 
 .PHONY: all
 all: $(APP)
-# all: depend $(APP)
 
 $(APP): $(APP_OBJ) $(LIB_OBJ)
 	$(CXX) $^ $(CXXFLAGS) -lpthread -g1 -o $(APP)
