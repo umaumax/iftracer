@@ -14,11 +14,14 @@ APP := iftracer_main
 APP_SRCS := main.cpp
 APP_OBJ  := main.o
 LIB_SRCS := iftracer_hook.cpp mmap_writer.cpp
-LIB_OBJ  := iftracer_hook.o mmap_writer.o
+LIB_OBJ  := mmap_writer.o iftracer_hook.o
 
 MMAP_WRITER_TEST := mmap_writer_test
 MMAP_WRITER_TEST_SRCS := mmap_writer_test.cpp
 MMAP_WRITER_TEST_OBJ  := mmap_writer_test.o
+
+LIB_AR=libiftracer.a
+ARFLAGS=crvs
 
 ALL_SRCS=$(APP_SRCS) $(LIB_SRCS) $(MMAP_WRITER_TEST_SRCS)
 DEPENDS=$(ALL_SRCS:%.cpp=%.d)
@@ -34,21 +37,24 @@ endif
 .PHONY: all
 all: $(APP)
 
-$(APP): $(APP_OBJ) $(LIB_OBJ)
-	$(CXX) $^ $(CXXFLAGS) -lpthread -g1 -o $(APP)
+$(APP): $(APP_OBJ) $(LIB_AR)
+	$(CXX) $(CXXFLAGS) -lpthread -g1 -o $(APP) $^
 
 $(APP_OBJ): $(APP_SRCS)
-	$(CXX) $^ $(CXXFLAGS) $(DEPENDS_FLAGS) -c -g1 -o $(APP_OBJ) $(APP_FLAGS)
+	$(CXX) $< $(CXXFLAGS) $(DEPENDS_FLAGS) -c -g1 -o $(APP_OBJ) $(APP_FLAGS)
 
 $(MMAP_WRITER_TEST): $(MMAP_WRITER_TEST_OBJ) $(LIB_OBJ)
 	$(CXX) $^ $(CXXFLAGS) -g3 -o $(MMAP_WRITER_TEST)
+
+$(LIB_AR): $(LIB_OBJ)
+	$(AR) $(ARFLAGS) $@ $^
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) $(DEPENDS_FLAGS) -c -g3 $<
 
 .PHONY: clean
 clean:
-	$(RM) $(APP) $(APP_OBJ) $(LIB_OBJ) $(MMAP_WRITER_TEST) $(MMAP_WRITER_TEST_OBJ) $(DEPENDS)
+	$(RM) $(APP) $(APP_OBJ) $(LIB_OBJ) $(MMAP_WRITER_TEST) $(MMAP_WRITER_TEST_OBJ) $(LIB_AR) $(DEPENDS)
 	$(RM) ./iftracer.out.* mmap_writer_test.bin
 
 .PHONY: clean.out
