@@ -330,8 +330,8 @@ void Logger::ExternalProcess(uintptr_t event, const std::string& text) {
 #ifdef IFTRACE_TEXT_FORMAT
 #else
   int32_t micro_duration_diff = get_current_micro_timestamp_diff();
-  constexpr int align_buffer  = 8;
-  int max_n = sizeof(int32_t) + sizeof(uintptr_t) + text.size() + align_buffer;
+  constexpr int text_align    = 4;
+  int max_n = sizeof(int32_t) + sizeof(uintptr_t) + text.size() + text_align;
   if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
     return;
@@ -348,7 +348,8 @@ void Logger::ExternalProcess(uintptr_t event, const std::string& text) {
     mw_.Seek(sizeof(uintptr_t));
 
     text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
-    size_t aligned_text_size = (((text_size) + (8 - 1)) & ~(8 - 1));
+    size_t aligned_text_size =
+        (((text_size) + (text_align - 1)) & ~(text_align - 1));
     mw_.Seek(aligned_text_size);
   } else if ((event & external_process_enter_exit_mask) ==
              external_process_exit) {
