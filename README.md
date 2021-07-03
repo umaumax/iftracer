@@ -145,61 +145,31 @@ dsymutil iftracer_main
   * 有効にしない限り、スレッドは立ち上がらない
 
 ## data format
-* enter function(12B/8B): timestamp_diff(4B), function address(8B/4B)
-* exit function(4B): timestamp_diff(4B)
-* internal enter(4B): timestamp_diff(4B)
-* internal exit(4B): timestamp_diff(4B)
-* external enter(12B~/8B~): timestamp_diff(4B), text_size(8B/4B), text(4B aligned)
-* external exit(4B): timestamp_diff(4B)
-
 * event_flag
-  * 0x0: enter(not used)
-  * 0x1: exit(not used)
-  * 0x2: internal use(used in iftracer itself)
-  * 0x3: external use(used by API)
+  * 0x0: enter function(12B/8B): timestamp_diff(4B), function address(8B/4B)
+  * 0x1: internal enter(4B), external enter(4B): timestamp_diff(4B)
+  * 0x2: exit function(4B), internal exit(4B): timestamp_diff(4B)
+  * 0x3: external exit(12B~/8B~): timestamp_diff(4B), text_size(8B/4B), text(4B aligned)
+
+* internal enter/exit (used in iftracer itself)
+* external enter/exit (used as API)
 
 ### timestamp_diff(us)
+32bit
+| MSB |  LSB |
+|:----|---:|
+|31-30|0|
+|event_flag|timestamp data|
+
 * 1つ前のtimestampを基準にして差分(>=0)+1を利用する
-  * enterならばそのまま
-  * exitならば`*=-1`を行う
-
-range: 0 us ~ 2^31-1-1(2147.483646)sec
-
-* 正数ならばenterフラグ
-* 負数ならばexitフラグ
-* 0であると、区別がつかないかつ壊れたファイル読み込み時の0値と区別がつかないため、オフセットとして1ずらしている
+  * timestamp dataの値が0であると、区別がつかないかつ壊れたファイル読み込み時の0値と区別がつかないため、オフセットとして1ずらしている
+* range: 0 us ~ 2^30-1-1 sec (1073.741822 sec)
 
 ### function address
-32bit
-| MSB |  LSB |
-|:----|---:|
-|31-30|0|
-|event_flag|callee function address|
-
-64bit
-| MSB |  LSB |
-|:----|---:|
-|63-62|0|
-|event_flag|callee function address|
-
-* address range
-  * 32bit: 0x0~0x3fffffff
-  * 64bit: 0x0~0x3fffffffffffffff
+32bit/64bitでそのまま
 
 ### text_size
-32bit
-| MSB |  LSB |
-|:----|---:|
-|31-30|0|
-|event_flag|text size|
-
-64bit
-| MSB |  LSB |
-|:----|---:|
-|63-62|0|
-|event_flag|text size|
-
-`event_flag=0x3: external use`であるときは`function address`ではなく、`text_size`として扱う
+32bitでそのまま
 
 ### text
 4B alignedでパディング値は未定義

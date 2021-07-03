@@ -147,6 +147,10 @@ bool get_async_munmap_flag() {
 }
 }  // namespace
 
+namespace {
+using ExtraInfo = uint32_t;
+}
+
 class Logger {
  public:
   explicit Logger(int64_t offset);
@@ -159,14 +163,14 @@ class Logger {
   static const int64_t TRUNCATE = 0;
   static const int64_t LAST     = -1;
 
-  void ExternalProcessEnter(const std::string& text);
+  void ExternalProcessEnter();
   void ExternalProcessExit(const std::string& text);
-  void ExternalProcess(uintptr_t event, const std::string& text);
+  void ExternalProcess(ExtraInfo event, const std::string& text);
 
  private:
   void InternalProcessEnter();
   void InternalProcessExit();
-  void InternalProcess(uintptr_t event);
+  void InternalProcess(ExtraInfo event);
 
   MmapWriter mw_;
   size_t flush_buffer_size_;
@@ -176,14 +180,14 @@ namespace {
 thread_local pid_t tid              = gettid();
 thread_local uint64_t pre_timestamp = get_current_micro_timestamp();
 
-int32_t get_current_micro_timestamp_diff() {
+uint32_t get_current_micro_timestamp_diff_with_offset() {
   uint64_t timestamp = std::chrono::duration_cast<std::chrono::microseconds>(
                            std::chrono::system_clock::now().time_since_epoch())
                            .count();
   constexpr uint64_t timestamp_diff_offset = 1;
   uint64_t timestamp_diff = timestamp - pre_timestamp + timestamp_diff_offset;
   pre_timestamp           = timestamp;
-  return static_cast<int32_t>(timestamp_diff);
+  return static_cast<uint32_t>(timestamp_diff);
 }
 
 std::function<int(void*, size_t)> get_async_munmap_func() {
@@ -255,108 +259,113 @@ void Logger::Finalize() {
 }
 
 namespace {
-constexpr int64_t pointer_size = sizeof(uintptr_t) * 8;
-constexpr uintptr_t flag_mask  = (0x1UL << (pointer_size - 2)) - 1;
-constexpr uintptr_t enter_flag = 0x0UL << (pointer_size - 2);
-// constexpr uintptr_t exit_flag         = 0x1UL << (pointer_size - 2);
-constexpr uintptr_t internal_use_flag = 0x2UL << (pointer_size - 2);
-constexpr uintptr_t external_use_flag = 0x3UL << (pointer_size - 2);
-uintptr_t set_flag_to_address(uintptr_t address, uintptr_t flag) {
-  return (address & flag_mask) | flag;
+constexpr uint32_t timestamp_size     = sizeof(uint32_t) * 8;
+constexpr ExtraInfo unset_flag_mask   = (0x1UL << (timestamp_size - 2)) - 1;
+constexpr ExtraInfo flag_mask         = ~unset_flag_mask;
+constexpr ExtraInfo normal_enter_flag = 0x0UL << (timestamp_size - 2);
+constexpr ExtraInfo internal_or_external_enter_flag = 0x1UL
+                                                      << (timestamp_size - 2);
+constexpr ExtraInfo internal_or_normal_exit_flag = 0x2UL
+                                                   << (timestamp_size - 2);
+constexpr ExtraInfo external_exit_flag = 0x3UL << (timestamp_size - 2);
+uint32_t set_flag_to_timestamp(uint32_t timestamp, ExtraInfo flag) {
+  return (timestamp & unset_flag_mask) | flag;
 }
 
-constexpr uintptr_t internal_process_enter_exit_mask = 0x1UL
-                                                       << (pointer_size - 3);
-constexpr uintptr_t internal_process_enter = 0x0UL << (pointer_size - 3);
-constexpr uintptr_t internal_process_exit  = 0x1UL << (pointer_size - 3);
-
-constexpr uintptr_t external_process_enter_exit_mask = 0x1UL
-                                                       << (pointer_size - 3);
-constexpr uintptr_t external_process_enter = 0x0UL << (pointer_size - 3);
-constexpr uintptr_t external_process_exit  = 0x1UL << (pointer_size - 3);
+// bool IsNormalEnter(ExtraInfo event) {
+// return (event & flag_mask) == normal_enter_flag;
+// }
+// bool IsNormalExit(ExtraInfo event) {
+// return (event & flag_mask) == internal_or_normal_exit_flag;
+// }
+bool IsInternalEnter(ExtraInfo event) {
+  return (event & flag_mask) == internal_or_external_enter_flag;
+}
+bool IsInternalExit(ExtraInfo event) {
+  return (event & flag_mask) == internal_or_normal_exit_flag;
+}
+bool IsExternalEnter(ExtraInfo event) {
+  return (event & flag_mask) == internal_or_external_enter_flag;
+}
+bool IsExternalExit(ExtraInfo event) {
+  return (event & flag_mask) == external_exit_flag;
+}
 }  // namespace
 
 namespace iftracer {
-void ExternalProcessEnter(const std::string& text);
+void ExternalProcessEnter();
 void ExternalProcessExit(const std::string& text);
 
-void ExternalProcessEnter(const std::string& text) {
-  logger.ExternalProcessEnter(text);
-}
+void ExternalProcessEnter() { logger.ExternalProcessEnter(); }
 void ExternalProcessExit(const std::string& text) {
   logger.ExternalProcessExit(text);
 }
 }  // namespace iftracer
 
-void Logger::InternalProcessEnter() { InternalProcess(internal_process_enter); }
-void Logger::InternalProcessExit() { InternalProcess(internal_process_exit); }
+void Logger::InternalProcessEnter() {
+  InternalProcess(internal_or_external_enter_flag);
+}
+void Logger::InternalProcessExit() {
+  InternalProcess(internal_or_normal_exit_flag);
+}
 
-void Logger::InternalProcess(uintptr_t event) {
+void Logger::InternalProcess(ExtraInfo event) {
 #ifdef IFTRACE_TEXT_FORMAT
 #else
-  int32_t micro_duration_diff = get_current_micro_timestamp_diff();
-  int max_n                   = 256;
+  uint32_t micro_duration_diff = get_current_micro_timestamp_diff_with_offset();
+  int max_n                    = 256;
   if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
     return;
   }
 
-  if ((event & internal_process_enter_exit_mask) == internal_process_enter) {
-    *reinterpret_cast<int32_t*>(mw_.Cursor()) = micro_duration_diff;
-    mw_.Seek(sizeof(int32_t));
-    uintptr_t masked_func_address = set_flag_to_address(
-        reinterpret_cast<uintptr_t>(event), internal_use_flag);
-    *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_func_address;
-    mw_.Seek(sizeof(uintptr_t));
-  } else if ((event & internal_process_enter_exit_mask) ==
-             internal_process_exit) {
-    *reinterpret_cast<int32_t*>(mw_.Cursor()) = -micro_duration_diff;
-    mw_.Seek(sizeof(int32_t));
+  *reinterpret_cast<uint32_t*>(mw_.Cursor()) =
+      set_flag_to_timestamp(micro_duration_diff, event);
+  mw_.Seek(sizeof(uint32_t));
+  if (IsInternalEnter(event)) {
+    // nothing
+  } else if (IsInternalExit(event)) {
+    // nothing
   } else {
-    fprintf(stderr, "invalid internal event flag %" PRIxPTR "\n", event);
+    fprintf(stderr, "invalid internal event flag %u\n", event);
     abort();
   }
 #endif
 }
 
-void Logger::ExternalProcessEnter(const std::string& text) {
-  ExternalProcess(external_process_enter, text);
+void Logger::ExternalProcessEnter() {
+  ExternalProcess(internal_or_external_enter_flag, "");
 }
 void Logger::ExternalProcessExit(const std::string& text) {
-  ExternalProcess(external_process_exit, text);
+  ExternalProcess(external_exit_flag, text);
 }
 
-void Logger::ExternalProcess(uintptr_t event, const std::string& text) {
+void Logger::ExternalProcess(ExtraInfo event, const std::string& text) {
 #ifdef IFTRACE_TEXT_FORMAT
 #else
-  int32_t micro_duration_diff = get_current_micro_timestamp_diff();
-  constexpr int text_align    = 4;
-  int max_n = sizeof(int32_t) + sizeof(uintptr_t) + text.size() + text_align;
+  uint32_t micro_duration_diff = get_current_micro_timestamp_diff_with_offset();
+  constexpr int text_align     = 4;
+  int max_n = sizeof(uint32_t) + sizeof(int32_t) + text.size() + text_align;
   if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
     return;
   }
 
-  if ((event & external_process_enter_exit_mask) == external_process_enter) {
-    *reinterpret_cast<int32_t*>(mw_.Cursor()) = micro_duration_diff;
+  *reinterpret_cast<uint32_t*>(mw_.Cursor()) =
+      set_flag_to_timestamp(micro_duration_diff, event);
+  mw_.Seek(sizeof(uint32_t));
+  if (IsExternalEnter(event)) {
+  } else if (IsExternalExit(event)) {
+    int32_t text_size                         = text.size();
+    *reinterpret_cast<int32_t*>(mw_.Cursor()) = text_size;
     mw_.Seek(sizeof(int32_t));
-
-    size_t text_size           = text.size();
-    uintptr_t masked_text_size = set_flag_to_address(
-        reinterpret_cast<uintptr_t>(event | text_size), external_use_flag);
-    *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_text_size;
-    mw_.Seek(sizeof(uintptr_t));
 
     text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
     size_t aligned_text_size =
         (((text_size) + (text_align - 1)) & ~(text_align - 1));
     mw_.Seek(aligned_text_size);
-  } else if ((event & external_process_enter_exit_mask) ==
-             external_process_exit) {
-    *reinterpret_cast<int32_t*>(mw_.Cursor()) = -micro_duration_diff;
-    mw_.Seek(sizeof(int32_t));
   } else {
-    fprintf(stderr, "invalid external event flag %" PRIxPTR "\n", event);
+    fprintf(stderr, "invalid external event flag %u\n", event);
     abort();
   }
 #endif
@@ -386,12 +395,12 @@ void Logger::Enter(void* func_address, void* call_site) {
                    call_site, normalized_func_address);
   mw_.Seek(n);
 #else
-  int32_t micro_duration_diff = get_current_micro_timestamp_diff();
-  *reinterpret_cast<int32_t*>(mw_.Cursor()) = micro_duration_diff;
-  mw_.Seek(sizeof(int32_t));
-  uintptr_t masked_func_address = set_flag_to_address(
-      reinterpret_cast<uintptr_t>(normalized_func_address), enter_flag);
-  *reinterpret_cast<uintptr_t*>(mw_.Cursor()) = masked_func_address;
+  uint32_t micro_duration_diff = get_current_micro_timestamp_diff_with_offset();
+  *reinterpret_cast<uint32_t*>(mw_.Cursor()) =
+      set_flag_to_timestamp(micro_duration_diff, normal_enter_flag);
+  mw_.Seek(sizeof(uint32_t));
+  *reinterpret_cast<uintptr_t*>(mw_.Cursor()) =
+      reinterpret_cast<uintptr_t>(normalized_func_address);
   mw_.Seek(sizeof(uintptr_t));
 #endif
 }
@@ -425,9 +434,10 @@ void Logger::Exit(void* func_address, void* call_site) {
                    call_site, normalized_func_address);
   mw_.Seek(n);
 #else
-  int32_t micro_duration_diff = get_current_micro_timestamp_diff();
-  *reinterpret_cast<int32_t*>(mw_.Cursor()) = -micro_duration_diff;
-  mw_.Seek(sizeof(int32_t));
+  uint32_t micro_duration_diff = get_current_micro_timestamp_diff_with_offset();
+  *reinterpret_cast<uint32_t*>(mw_.Cursor()) =
+      set_flag_to_timestamp(micro_duration_diff, internal_or_normal_exit_flag);
+  mw_.Seek(sizeof(uint32_t));
 #endif
 }
 
