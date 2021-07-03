@@ -20,6 +20,10 @@ MMAP_WRITER_TEST := mmap_writer_test
 MMAP_WRITER_TEST_SRCS := mmap_writer_test.cpp
 MMAP_WRITER_TEST_OBJ  := mmap_writer_test.o
 
+ALL_SRCS=$(APP_SRCS) $(LIB_SRCS) $(MMAP_WRITER_TEST_SRCS)
+DEPENDS=$(ALL_SRCS:%.cpp=%.d)
+DEPENDS_FLAGS=-MMD -MP
+
 APP_FLAGS := -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++
 ifneq ($(filter clang%,$(CXX)),)
 	APP_FLAGS := -DIFTRACER_ENABLE_API -finstrument-functions-after-inlining
@@ -35,26 +39,22 @@ $(APP): $(APP_OBJ) $(LIB_OBJ)
 	$(CXX) $^ $(CXXFLAGS) -lpthread -g1 -o $(APP)
 
 $(APP_OBJ): $(APP_SRCS)
-	$(CXX) $^ $(CXXFLAGS) -c -g1 -o $(APP_OBJ) $(APP_FLAGS)
+	$(CXX) $^ $(CXXFLAGS) $(DEPENDS_FLAGS) -c -g1 -o $(APP_OBJ) $(APP_FLAGS)
 
 $(MMAP_WRITER_TEST): $(MMAP_WRITER_TEST_OBJ) $(LIB_OBJ)
 	$(CXX) $^ $(CXXFLAGS) -g3 -o $(MMAP_WRITER_TEST)
 
 .cpp.o:
-	$(CXX) $(CXXFLAGS) -c -g3 $<
+	$(CXX) $(CXXFLAGS) $(DEPENDS_FLAGS) -c -g3 $<
 
 .PHONY: clean
 clean:
-	$(RM) $(APP) $(APP_OBJ) $(LIB_OBJ) $(MMAP_WRITER_TEST) $(MMAP_WRITER_TEST_OBJ) depend.inc
+	$(RM) $(APP) $(APP_OBJ) $(LIB_OBJ) $(MMAP_WRITER_TEST) $(MMAP_WRITER_TEST_OBJ) $(DEPENDS)
 	$(RM) ./iftracer.out.* mmap_writer_test.bin
 
 .PHONY: clean.out
 clean.out:
 	$(RM) ./iftracer.out.* mmap_writer_test.bin
-
-# .PHONY: depend
-# depend:
-	# makedepend -- $(CXXFLAGS) -- $(ALL_C_FILES)
 
 .PHONY: run
 run: $(APP)
@@ -66,5 +66,4 @@ test: $(MMAP_WRITER_TEST)
 	@echo "[RUN TEST]"
 	./$(MMAP_WRITER_TEST)
 
-# -include depend.inc
-# # DO NOT DELETE
+-include $(DEPENDS)
