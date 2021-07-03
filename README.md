@@ -145,26 +145,28 @@ dsymutil iftracer_main
   * 有効にしない限り、スレッドは立ち上がらない
 
 ## data format
-* event_flag
-  * 0x0: enter function(12B/8B): timestamp_diff(4B), function address(8B/4B)
-  * 0x1: internal enter(4B), external enter(4B): timestamp_diff(4B)
-  * 0x2: exit function(4B), internal exit(4B): timestamp_diff(4B)
-  * 0x3: external exit(12B~/8B~): timestamp_diff(4B), text_size(8B/4B), text(4B aligned)
+| event_flag | description                            | binary content                                                   |
+|------------|----------------------------------------|------------------------------------------------------------------|
+| `0x0`      | enter function(12B/8B)                 | `timestamp_diff(4B)` -> `function address(8B/4B)`                |
+| `0x1`      | internal enter(4B), external enter(4B) | `timestamp_diff(4B)`                                             |
+| `0x2`      | exit function(4B), internal exit(4B)   | `timestamp_diff(4B)`                                             |
+| `0x3`      | external exit(12B~/8B~)                | `timestamp_diff(4B)` -> `text_size(8B/4B)` -> `text(4B aligned)` |
 
 * internal enter/exit (used in iftracer itself)
 * external enter/exit (used as API)
 
-### timestamp_diff(us)
+### timestamp_diff
 32bit
 | MSB |  LSB |
 |:----|---:|
 |31-30|0|
 |event_flag|timestamp data|
 
+* microsecond単位
 * 1つ前のtimestampを基準にして差分(>=0)+1を利用する
   * メインスレッドの一番最初の値を基準とする
   * timestamp dataの値が0であると、区別がつかないかつ壊れたファイル読み込み時の0値と区別がつかないため、オフセットとして1ずらしている
-* range: 0 us ~ 2^30-1-1 sec (1073.741822 sec)
+* range: 0 us ~ 2^30-1-1 us (1073.741822 sec)
 
 ### function address
 32bit/64bitでそのまま
