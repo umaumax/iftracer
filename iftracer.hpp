@@ -33,12 +33,16 @@ class ScopeLogger {
     }
   }
 
-  __attribute__((no_instrument_function)) void Enter() { Enter(""); }
+  __attribute__((no_instrument_function)) void Enter() {
+    assert(!entered_flag_);
+    entered_flag_ = true;
+    iftracer::ExternalProcessEnter();
+  }
 
   __attribute__((no_instrument_function)) void Enter(const std::string& text) {
     assert(!entered_flag_);
     entered_flag_ = true;
-    text_         = text;
+    SetText(text);
     iftracer::ExternalProcessEnter();
   }
 
@@ -48,6 +52,11 @@ class ScopeLogger {
     assert(entered_flag_);
     iftracer::ExternalProcessExit(text);
     entered_flag_ = false;
+  }
+
+  __attribute__((no_instrument_function)) void SetText(
+      const std::string& text) {
+    text_ = text;
   }
 
  private:

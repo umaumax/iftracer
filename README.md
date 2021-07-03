@@ -50,6 +50,24 @@ void task(int x) {
   }
 }
 
+void task(int x) {
+  iftracer::ScopeLogger scope_logger;
+  scope_logger.Enter();
+  std::string scope_logger_text = "";
+  switch (x) {
+  case 0:
+    scope_logger_text = "x is 0";
+    break;
+  case 1:
+    scope_logger_text = "x is 1";
+    break;
+  default:
+    scope_logger_text = "invalid x";
+    break;
+  }
+  scope_logger.SetText(scope_logger_text);
+}
+
 void task() {
   auto scope_logger = iftracer::ScopeLogger("playing 🎮");
   // do something
