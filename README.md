@@ -150,7 +150,7 @@ dsymutil iftracer_main
 | `0x0`      | enter function(12B/8B)                 | `timestamp_diff(4B)` -> `function address(8B/4B)`                |
 | `0x1`      | internal enter(4B), external enter(4B) | `timestamp_diff(4B)`                                             |
 | `0x2`      | exit function(4B), internal exit(4B)   | `timestamp_diff(4B)`                                             |
-| `0x3`      | external exit(12B~/8B~)                | `timestamp_diff(4B)` -> `text_size(8B/4B)` -> `text(4B aligned)` |
+| `0x3`      | external exit(12B~/8B~)                | `timestamp_diff(4B)` -> `text_size(4B)` -> `text(4B aligned)` |
 
 * internal enter/exit (used in iftracer itself)
 * external enter/exit (used as API)
@@ -169,13 +169,13 @@ dsymutil iftracer_main
 * range: 0 us ~ 2^30-1-1 us (1073.741822 sec)
 
 ### function address
-32bit/64bitでそのまま
+アーキテクチャ依存で、32bit or 64bitとなる
 
 ### text_size
-32bitでそのまま
+4B alignedされる前のtextのサイズ(32bit)
 
 ### text
-4B alignedでパディング値は未定義
+サイズは4B alignedとなり、終端のNULL文字は不要で、パディング値は任意
 
 ## 個別に関数をフィルタする例
 ``` bash
