@@ -177,8 +177,12 @@ class Logger {
 };
 
 namespace {
-thread_local pid_t tid              = gettid();
-thread_local uint64_t pre_timestamp = get_current_micro_timestamp();
+thread_local pid_t tid = gettid();
+uint64_t get_base_timestamp() {
+  static uint64_t base_timestamp = get_current_micro_timestamp();
+  return base_timestamp;
+};
+thread_local uint64_t pre_timestamp = get_base_timestamp();
 
 uint32_t get_current_micro_timestamp_diff_with_offset() {
   uint64_t timestamp = std::chrono::duration_cast<std::chrono::microseconds>(

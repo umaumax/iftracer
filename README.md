@@ -162,6 +162,7 @@ dsymutil iftracer_main
 |event_flag|timestamp data|
 
 * 1つ前のtimestampを基準にして差分(>=0)+1を利用する
+  * メインスレッドの一番最初の値を基準とする
   * timestamp dataの値が0であると、区別がつかないかつ壊れたファイル読み込み時の0値と区別がつかないため、オフセットとして1ずらしている
 * range: 0 us ~ 2^30-1-1 sec (1073.741822 sec)
 
