@@ -18,6 +18,7 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 #include <sys/syscall.h>
 
 #include <chrono>
+#include <csignal>
 #include <cstring>
 #include <functional>
 #include <iostream>
@@ -32,6 +33,17 @@ void __cyg_profile_func_exit(void* func_address, void* call_site);
 }
 
 namespace {
+void exit_handler(int sig) { std::exit(128 + sig); }
+struct ExitBySignal {
+  ExitBySignal() {
+    struct sigaction sa;
+    memset(&sa, 0, sizeof(sa));
+    sa.sa_handler = exit_handler;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGINT, &sa, nullptr);
+  }
+} exit_by_signal;
+
 #if __APPLE__
 pid_t gettid() {
   uint64_t tid64 = 0;
