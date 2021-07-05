@@ -246,7 +246,6 @@ void Logger::Initialize(int64_t offset) {
   }
   flush_buffer_size_ = get_flush_buffer_size();
   if (get_async_munmap_flag()) {
-    printf("hoge\n");
     mw_.SetMunmapHook(get_async_munmap_func());
   }
 }
