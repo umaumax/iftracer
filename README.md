@@ -177,7 +177,7 @@ dsymutil iftracer_main
 * `IFTRACER_OUTPUT_DIRECTORY=./`: トレースログの出力先のディレクトリ
 * `IFTRACER_OUTPUT_FILE_PREFIX=iftracer.out.`: トレースログの出力ファイルのprefix
 * `IFTRACER_ASYNC_MUNMAP=0`: 対象プロセス上に`munmap`を実行するスレッドを別途作成し、そこで実行するかどうか(0以外の数値を設定するとスレッドが起動する)
-  * 1回あたり、`0.03ms`~`1.5msと`なり、普通に`munmap`を呼ぶ場合と比較して、揺れ幅が増えているので、スレッドを立ち上げる副作用もあり、あまりおすすめしない
+  * 1回あたり、`0.02ms`~`0.46ms`となり、普通に`munmap`を呼ぶ場合と比較して、多少高速化が見込める(スレッドを立ち上げる副作用には注意)
   * 有効にしない限り、スレッドは立ち上がらない
 
 ## data format
