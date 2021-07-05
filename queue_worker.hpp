@@ -26,7 +26,7 @@ class QueueWorker {
 
   void Post(T item) {
     {
-      std::unique_lock<std::mutex> lock(mutex_);
+      std::lock_guard<std::mutex> lock(mutex_);
       items_.push(item);
     }
 
@@ -35,7 +35,7 @@ class QueueWorker {
 
   void Join() {
     {
-      std::unique_lock<std::mutex> lock(mutex_);
+      std::lock_guard<std::mutex> lock(mutex_);
       stop_flag_ = true;
     }
     condition_variable_.notify_all();
