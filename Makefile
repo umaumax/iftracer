@@ -38,7 +38,7 @@ endif
 all: $(APP)
 
 $(APP): $(APP_OBJ) $(LIB_AR)
-	$(CXX) $(CXXFLAGS) -lpthread -g1 -o $(APP) $^
+	$(CXX) $(CXXFLAGS) -g1 -o $(APP) $^ -lpthread 
 
 $(APP_OBJ): $(APP_SRCS)
 	$(CXX) $< $(CXXFLAGS) $(DEPENDS_FLAGS) -c -g1 -o $(APP_OBJ) $(APP_FLAGS)
