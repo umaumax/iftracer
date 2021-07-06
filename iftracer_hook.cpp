@@ -159,14 +159,14 @@ class Logger {
   static const int64_t TRUNCATE = 0;
   static const int64_t LAST     = -1;
 
-  void ExternalProcessDurationEnter();
-  void ExternalProcessDurationExit(const std::string& text);
-  void ExternalProcessAsyncEnter(const std::string& text);
-  void ExternalProcessAsyncExit(const std::string& text);
-  void ExternalProcessInstantExit(const std::string& text);
+  void ExtendEventDurationEnter();
+  void ExtendEventDurationExit(const std::string& text);
+  void ExtendEventAsyncEnter(const std::string& text);
+  void ExtendEventAsyncExit(const std::string& text);
+  void ExtendEventInstantExit(const std::string& text);
 
  private:
-  bool ExternalProcessWriteHeader(ExtraInfo event, ExtendType extend_type,
+  bool ExtendEventWriteHeader(ExtraInfo event, ExtendType extend_type,
                                   size_t reservation_buffer_size);
   void InternalProcessEnter();
   void InternalProcessExit();
@@ -240,13 +240,13 @@ struct ForceLoggerDestructor {
 Logger::Logger(int64_t offset) {
   Initialize(offset);
   if (offset == Logger::TRUNCATE && !is_main_thread()) {
-    ExternalProcessAsyncEnter("[thread lifetime]");
+    ExtendEventAsyncEnter("[thread lifetime]");
   }
 }
 Logger::~Logger() {
   if (tls_init_trigger != 0) {
     if (!is_main_thread()) {
-      ExternalProcessAsyncExit("[thread lifetime]");
+      ExtendEventAsyncExit("[thread lifetime]");
     }
     Finalize();
 
@@ -310,21 +310,21 @@ constexpr ExtendType instant        = 0x4;
 }  // namespace
 
 namespace iftracer {
-void ExternalProcessDurationEnter();
-void ExternalProcessDurationExit(const std::string& text);
+void ExtendEventDurationEnter();
+void ExtendEventDurationExit(const std::string& text);
 
-void ExternalProcessDurationEnter() { logger.ExternalProcessDurationEnter(); }
-void ExternalProcessDurationExit(const std::string& text) {
-  logger.ExternalProcessDurationExit(text);
+void ExtendEventDurationEnter() { logger.ExtendEventDurationEnter(); }
+void ExtendEventDurationExit(const std::string& text) {
+  logger.ExtendEventDurationExit(text);
 }
 }  // namespace iftracer
 
-void Logger::InternalProcessEnter() { ExternalProcessDurationEnter(); }
+void Logger::InternalProcessEnter() { ExtendEventDurationEnter(); }
 void Logger::InternalProcessExit() {
-  ExternalProcessDurationExit("[internal]");
+  ExtendEventDurationExit("[internal]");
 }
 
-bool Logger::ExternalProcessWriteHeader(ExtraInfo event, ExtendType extend_type,
+bool Logger::ExtendEventWriteHeader(ExtraInfo event, ExtendType extend_type,
                                         size_t reservation_buffer_size) {
 #ifdef IFTRACE_TEXT_FORMAT
 #else
@@ -346,16 +346,16 @@ bool Logger::ExternalProcessWriteHeader(ExtraInfo event, ExtendType extend_type,
   return true;
 }
 
-void Logger::ExternalProcessDurationEnter() {
-  if (!Logger::ExternalProcessWriteHeader(exntend_enter_flag, duration_enter,
+void Logger::ExtendEventDurationEnter() {
+  if (!Logger::ExtendEventWriteHeader(exntend_enter_flag, duration_enter,
                                           0)) {
     return;
   }
 }
-void Logger::ExternalProcessDurationExit(const std::string& text) {
+void Logger::ExtendEventDurationExit(const std::string& text) {
   constexpr int text_align    = 4;
   int reservation_buffer_size = text.size() + text_align;
-  if (!Logger::ExternalProcessWriteHeader(exntend_exit_flag, duration_exit,
+  if (!Logger::ExtendEventWriteHeader(exntend_exit_flag, duration_exit,
                                           reservation_buffer_size)) {
     return;
   }
@@ -368,10 +368,10 @@ void Logger::ExternalProcessDurationExit(const std::string& text) {
       (((text_size) + (text_align - 1)) & ~(text_align - 1));
   mw_.Seek(aligned_text_size);
 }
-void Logger::ExternalProcessAsyncEnter(const std::string& text) {
+void Logger::ExtendEventAsyncEnter(const std::string& text) {
   constexpr int text_align    = 4;
   int reservation_buffer_size = text.size() + text_align;
-  if (!Logger::ExternalProcessWriteHeader(exntend_enter_flag, async_enter,
+  if (!Logger::ExtendEventWriteHeader(exntend_enter_flag, async_enter,
                                           reservation_buffer_size)) {
     return;
   }
@@ -384,10 +384,10 @@ void Logger::ExternalProcessAsyncEnter(const std::string& text) {
       (((text_size) + (text_align - 1)) & ~(text_align - 1));
   mw_.Seek(aligned_text_size);
 }
-void Logger::ExternalProcessAsyncExit(const std::string& text) {
+void Logger::ExtendEventAsyncExit(const std::string& text) {
   constexpr int text_align    = 4;
   int reservation_buffer_size = text.size() + text_align;
-  if (!Logger::ExternalProcessWriteHeader(exntend_exit_flag, async_exit,
+  if (!Logger::ExtendEventWriteHeader(exntend_exit_flag, async_exit,
                                           reservation_buffer_size)) {
     return;
   }
@@ -400,10 +400,10 @@ void Logger::ExternalProcessAsyncExit(const std::string& text) {
       (((text_size) + (text_align - 1)) & ~(text_align - 1));
   mw_.Seek(aligned_text_size);
 }
-void Logger::ExternalProcessInstantExit(const std::string& text) {
+void Logger::ExtendEventInstantExit(const std::string& text) {
   constexpr int text_align    = 4;
   int reservation_buffer_size = text.size() + text_align;
-  if (!Logger::ExternalProcessWriteHeader(exntend_exit_flag, instant,
+  if (!Logger::ExtendEventWriteHeader(exntend_exit_flag, instant,
                                           reservation_buffer_size)) {
     return;
   }

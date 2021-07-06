@@ -6,13 +6,13 @@
 
 namespace iftracer {
 #ifdef IFTRACER_ENABLE_API
-void ExternalProcessDurationEnter();
-void ExternalProcessDurationExit(const std::string& text);
+void ExtendEventDurationEnter();
+void ExtendEventDurationExit(const std::string& text);
 #else
-inline void ExternalProcessDurationEnter() {
+inline void ExtendEventDurationEnter() {
   // do nothing used only for passing build
 }
-inline void ExternalProcessDurationExit(const std::string& text) {
+inline void ExtendEventDurationExit(const std::string& text) {
   // do nothing used only for passing build
 }
 #endif
@@ -36,21 +36,21 @@ class ScopeLogger {
   __attribute__((no_instrument_function)) void Enter() {
     assert(!entered_flag_);
     entered_flag_ = true;
-    iftracer::ExternalProcessDurationEnter();
+    iftracer::ExtendEventDurationEnter();
   }
 
   __attribute__((no_instrument_function)) void Enter(const std::string& text) {
     assert(!entered_flag_);
     entered_flag_ = true;
     SetText(text);
-    iftracer::ExternalProcessDurationEnter();
+    iftracer::ExtendEventDurationEnter();
   }
 
   __attribute__((no_instrument_function)) void Exit() { Exit(text_); }
 
   __attribute__((no_instrument_function)) void Exit(const std::string& text) {
     assert(entered_flag_);
-    iftracer::ExternalProcessDurationExit(text);
+    iftracer::ExtendEventDurationExit(text);
     entered_flag_ = false;
   }
 
