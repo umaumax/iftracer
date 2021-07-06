@@ -312,17 +312,23 @@ constexpr ExtendType instant        = 0x4;
 namespace iftracer {
 void ExtendEventDurationEnter();
 void ExtendEventDurationExit(const std::string& text);
+void ExtendEventAsyncEnter(const std::string& text);
+void ExtendEventAsyncExit(const std::string& text);
 
 void ExtendEventDurationEnter() { logger.ExtendEventDurationEnter(); }
 void ExtendEventDurationExit(const std::string& text) {
   logger.ExtendEventDurationExit(text);
 }
+void ExtendEventAsyncEnter(const std::string& text) {
+  logger.ExtendEventAsyncEnter(text);
+}
+void ExtendEventAsyncExit(const std::string& text) {
+  logger.ExtendEventAsyncExit(text);
+}
 }  // namespace iftracer
 
 void Logger::InternalProcessEnter() { ExtendEventDurationEnter(); }
-void Logger::InternalProcessExit() {
-  ExtendEventDurationExit("[internal]");
-}
+void Logger::InternalProcessExit() { ExtendEventDurationExit("[internal]"); }
 
 bool Logger::ExtendEventWriteHeader(ExtraInfo event, ExtendType extend_type,
                                         size_t reservation_buffer_size) {

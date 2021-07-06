@@ -8,11 +8,19 @@ namespace iftracer {
 #ifdef IFTRACER_ENABLE_API
 void ExtendEventDurationEnter();
 void ExtendEventDurationExit(const std::string& text);
+void ExtendEventAsyncEnter(const std::string& text);
+void ExtendEventAsyncExit(const std::string& text);
 #else
 inline void ExtendEventDurationEnter() {
   // do nothing used only for passing build
 }
 inline void ExtendEventDurationExit(const std::string& text) {
+  // do nothing used only for passing build
+}
+inline void ExtendEventAsyncEnter(const std::string& text) {
+  // do nothing used only for passing build
+}
+inline void ExtendEventAsyncExit(const std::string& text) {
   // do nothing used only for passing build
 }
 #endif
@@ -57,6 +65,30 @@ class ScopeLogger {
   __attribute__((no_instrument_function)) void SetText(
       const std::string& text) {
     text_ = text;
+  }
+
+ private:
+  bool entered_flag_ = false;
+  std::string text_;
+};
+
+class AsyncLogger {
+ public:
+  __attribute__((no_instrument_function)) AsyncLogger() {}
+
+  __attribute__((no_instrument_function)) void Enter(const std::string& text) {
+    assert(!entered_flag_);
+    entered_flag_ = true;
+    text_         = text;
+    ExtendEventAsyncEnter(text);
+  }
+
+  __attribute__((no_instrument_function)) void Exit() {
+    assert(entered_flag_);
+    ExtendEventAsyncExit(text_);
+  }
+  __attribute__((no_instrument_function)) void Exit(const std::string& text) {
+    ExtendEventAsyncExit(text);
   }
 
  private:

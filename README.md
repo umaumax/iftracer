@@ -53,6 +53,19 @@ void task() {
   // do something
 }
 
+// you must call Enter and Exit at same thread
+void async_task() {
+  iftracer::AsyncLogger async_logger;
+  async_logger.Enter("entire for loop");
+  for (int i = 0; i < 10; i++) {
+    iftracer::AsyncLogger async_logger;
+    async_logger.Enter("for loop");
+    // do something
+    async_logger.Exit("for loop");
+  }
+  async_logger.Exit(); // same as Enter text
+}
+
 void task(int x) {
   iftracer::ScopeLogger scope_logger;
   switch (x) {

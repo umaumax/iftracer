@@ -39,7 +39,11 @@ int main() {
   hoge();
   fuga();
 
+  iftracer::AsyncLogger async_logger;
+  async_logger.Enter("thread loop start");
   for (int i = 0; i < 10; i++) {
+    iftracer::AsyncLogger async_logger;
+    async_logger.Enter("for loop");
     std::thread th([&] {
       hoge();
       fuga();
@@ -59,6 +63,8 @@ int main() {
     hoge();
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
     hoge();
+    async_logger.Exit("for loop");
   }
+  async_logger.Exit();
   return 0;
 }
