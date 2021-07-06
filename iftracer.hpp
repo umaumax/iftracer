@@ -9,10 +9,10 @@ namespace iftracer {
 void ExternalProcessEnter();
 void ExternalProcessExit(const std::string& text);
 #else
-void ExternalProcessEnter() {
+inline void ExternalProcessEnter() {
   // do nothing used only for passing build
 }
-void ExternalProcessExit(const std::string& text) {
+inline void ExternalProcessExit(const std::string& text) {
   // do nothing used only for passing build
 }
 #endif
