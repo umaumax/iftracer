@@ -190,10 +190,10 @@ dsymutil iftracer_main
 
 ### timestamp_diff
 32bit
-| MSB |  LSB |
-|:----|---:|
-|31-30|0|
-|event_flag|timestamp data|
+| MSB        | LSB            |
+|:-----------|---------------:|
+| 31-30      | 0              |
+| event_flag | timestamp data |
 
 * microsecond単位
 * 1つ前のtimestampを基準にして差分(>=0)+1を利用する
