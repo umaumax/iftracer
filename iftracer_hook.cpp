@@ -161,7 +161,7 @@ class Logger {
 
   void ExternalProcessDurationEnter();
   void ExternalProcessDurationExit(const std::string& text);
-  void ExternalProcessAsyncEnter();
+  void ExternalProcessAsyncEnter(const std::string& text);
   void ExternalProcessAsyncExit(const std::string& text);
   void ExternalProcessInstantExit(const std::string& text);
 
@@ -181,6 +181,14 @@ pid_t get_cached_pid() {
   return pid;
 }
 thread_local pid_t tid = gettid();
+bool is_main_thread() {
+#if __linux__
+  return get_cached_pid() == tid;
+#else
+  static pid_t main_tid = []() { return gettid(); }();
+  return main_tid == tid;
+#endif
+}
 uint64_t get_base_timestamp() {
   static uint64_t base_timestamp = get_current_micro_timestamp();
   return base_timestamp;
@@ -229,9 +237,17 @@ struct ForceLoggerDestructor {
 #endif
 }  // namespace
 
-Logger::Logger(int64_t offset) { Initialize(offset); }
+Logger::Logger(int64_t offset) {
+  Initialize(offset);
+  if (offset == Logger::TRUNCATE && !is_main_thread()) {
+    ExternalProcessAsyncEnter("[thread lifetime]");
+  }
+}
 Logger::~Logger() {
   if (tls_init_trigger != 0) {
+    if (!is_main_thread()) {
+      ExternalProcessAsyncExit("[thread lifetime]");
+    }
     Finalize();
 
     // below value is used to know loggre lifetime
@@ -352,10 +368,21 @@ void Logger::ExternalProcessDurationExit(const std::string& text) {
       (((text_size) + (text_align - 1)) & ~(text_align - 1));
   mw_.Seek(aligned_text_size);
 }
-void Logger::ExternalProcessAsyncEnter() {
-  if (!Logger::ExternalProcessWriteHeader(exntend_enter_flag, async_enter, 0)) {
+void Logger::ExternalProcessAsyncEnter(const std::string& text) {
+  constexpr int text_align    = 4;
+  int reservation_buffer_size = text.size() + text_align;
+  if (!Logger::ExternalProcessWriteHeader(exntend_enter_flag, async_enter,
+                                          reservation_buffer_size)) {
     return;
   }
+
+  int32_t text_size                         = text.size();
+  *reinterpret_cast<int32_t*>(mw_.Cursor()) = text_size;
+  mw_.Seek(sizeof(int32_t));
+  text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
+  size_t aligned_text_size =
+      (((text_size) + (text_align - 1)) & ~(text_align - 1));
+  mw_.Seek(aligned_text_size);
 }
 void Logger::ExternalProcessAsyncExit(const std::string& text) {
   constexpr int text_align    = 4;
