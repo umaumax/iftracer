@@ -172,6 +172,10 @@ class Logger {
 };
 
 namespace {
+pid_t get_cached_pid() {
+  static pid_t pid = []() { return getpid(); }();
+  return pid;
+}
 thread_local pid_t tid = gettid();
 uint64_t get_base_timestamp() {
   static uint64_t base_timestamp = get_current_micro_timestamp();
@@ -247,6 +251,18 @@ void Logger::Initialize(int64_t offset) {
   flush_buffer_size_ = get_flush_buffer_size();
   if (get_async_munmap_flag()) {
     mw_.SetMunmapHook(get_async_munmap_func());
+  }
+  // write header
+  if (offset == 0) {
+    uint64_t base_timestamp                    = get_base_timestamp();
+    *reinterpret_cast<uint64_t*>(mw_.Cursor()) = base_timestamp;
+    mw_.Seek(sizeof(uint64_t));
+    // pid_t is basically int
+    *reinterpret_cast<pid_t*>(mw_.Cursor()) = get_cached_pid();
+    mw_.Seek(sizeof(pid_t));
+    // pid_t is basically int
+    *reinterpret_cast<pid_t*>(mw_.Cursor()) = tid;
+    mw_.Seek(sizeof(pid_t));
   }
 }
 void Logger::Finalize() {
