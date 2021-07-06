@@ -143,8 +143,9 @@ bool get_async_munmap_flag() {
 }  // namespace
 
 namespace {
-using ExtraInfo = uint32_t;
-}
+using ExtraInfo  = uint32_t;
+using ExtendType = uint32_t;
+}  // namespace
 
 class Logger {
  public:
@@ -158,14 +159,17 @@ class Logger {
   static const int64_t TRUNCATE = 0;
   static const int64_t LAST     = -1;
 
-  void ExternalProcessEnter();
-  void ExternalProcessExit(const std::string& text);
-  void ExternalProcess(ExtraInfo event, const std::string& text);
+  void ExternalProcessDurationEnter();
+  void ExternalProcessDurationExit(const std::string& text);
+  void ExternalProcessAsyncEnter();
+  void ExternalProcessAsyncExit(const std::string& text);
+  void ExternalProcessInstantExit(const std::string& text);
 
  private:
+  bool ExternalProcessWriteHeader(ExtraInfo event, ExtendType extend_type,
+                                  size_t reservation_buffer_size);
   void InternalProcessEnter();
   void InternalProcessExit();
-  void InternalProcess(ExtraInfo event);
 
   MmapWriter mw_;
   size_t flush_buffer_size_;
@@ -273,116 +277,125 @@ void Logger::Finalize() {
 }
 
 namespace {
-constexpr uint32_t timestamp_size     = sizeof(uint32_t) * 8;
-constexpr ExtraInfo unset_flag_mask   = (0x1UL << (timestamp_size - 2)) - 1;
-constexpr ExtraInfo flag_mask         = ~unset_flag_mask;
-constexpr ExtraInfo normal_enter_flag = 0x0UL << (timestamp_size - 2);
-constexpr ExtraInfo internal_or_external_enter_flag = 0x1UL
-                                                      << (timestamp_size - 2);
-constexpr ExtraInfo internal_or_normal_exit_flag = 0x2UL
-                                                   << (timestamp_size - 2);
-constexpr ExtraInfo external_exit_flag = 0x3UL << (timestamp_size - 2);
+constexpr uint32_t timestamp_size   = sizeof(uint32_t) * 8;
+constexpr ExtraInfo unset_flag_mask = (0x1UL << (timestamp_size - 2)) - 1;
+// constexpr ExtraInfo flag_mask          = ~unset_flag_mask;
+constexpr ExtraInfo normal_enter_flag  = 0x0UL << (timestamp_size - 2);
+constexpr ExtraInfo exntend_enter_flag = 0x1UL << (timestamp_size - 2);
+constexpr ExtraInfo normal_exit_flag   = 0x2UL << (timestamp_size - 2);
+constexpr ExtraInfo exntend_exit_flag  = 0x3UL << (timestamp_size - 2);
 uint32_t set_flag_to_timestamp(uint32_t timestamp, ExtraInfo flag) {
   return (timestamp & unset_flag_mask) | flag;
 }
+constexpr ExtendType duration_enter = 0x0;
+constexpr ExtendType duration_exit  = 0x1;
+constexpr ExtendType async_enter    = 0x2;
+constexpr ExtendType async_exit     = 0x3;
+constexpr ExtendType instant        = 0x4;
 
-// bool IsNormalEnter(ExtraInfo event) {
-// return (event & flag_mask) == normal_enter_flag;
+// bool IsExternalEnter(ExtraInfo event) {
+// return (event & flag_mask) == internal_or_external_enter_flag;
 // }
-// bool IsNormalExit(ExtraInfo event) {
-// return (event & flag_mask) == internal_or_normal_exit_flag;
+// bool IsExternalExit(ExtraInfo event) {
+// return (event & flag_mask) == external_exit_flag;
 // }
-bool IsInternalEnter(ExtraInfo event) {
-  return (event & flag_mask) == internal_or_external_enter_flag;
-}
-bool IsInternalExit(ExtraInfo event) {
-  return (event & flag_mask) == internal_or_normal_exit_flag;
-}
-bool IsExternalEnter(ExtraInfo event) {
-  return (event & flag_mask) == internal_or_external_enter_flag;
-}
-bool IsExternalExit(ExtraInfo event) {
-  return (event & flag_mask) == external_exit_flag;
-}
 }  // namespace
 
 namespace iftracer {
-void ExternalProcessEnter();
-void ExternalProcessExit(const std::string& text);
+void ExternalProcessDurationEnter();
+void ExternalProcessDurationExit(const std::string& text);
 
-void ExternalProcessEnter() { logger.ExternalProcessEnter(); }
-void ExternalProcessExit(const std::string& text) {
-  logger.ExternalProcessExit(text);
+void ExternalProcessDurationEnter() { logger.ExternalProcessDurationEnter(); }
+void ExternalProcessDurationExit(const std::string& text) {
+  logger.ExternalProcessDurationExit(text);
 }
 }  // namespace iftracer
 
-void Logger::InternalProcessEnter() {
-  InternalProcess(internal_or_external_enter_flag);
-}
+void Logger::InternalProcessEnter() { ExternalProcessDurationEnter(); }
 void Logger::InternalProcessExit() {
-  InternalProcess(internal_or_normal_exit_flag);
+  ExternalProcessDurationExit("[internal]");
 }
 
-void Logger::InternalProcess(ExtraInfo event) {
+bool Logger::ExternalProcessWriteHeader(ExtraInfo event, ExtendType extend_type,
+                                        size_t reservation_buffer_size) {
 #ifdef IFTRACE_TEXT_FORMAT
 #else
   uint32_t micro_duration_diff = get_current_micro_timestamp_diff_with_offset();
-  int max_n                    = 256;
-  if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
+  reservation_buffer_size += sizeof(uint32_t) + sizeof(ExtendType);
+  if (!mw_.CheckCapacity(reservation_buffer_size) &&
+      !mw_.PrepareWrite(reservation_buffer_size)) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
-    return;
+    return false;
   }
 
   *reinterpret_cast<uint32_t*>(mw_.Cursor()) =
       set_flag_to_timestamp(micro_duration_diff, event);
   mw_.Seek(sizeof(uint32_t));
-  if (IsInternalEnter(event)) {
-    // nothing
-  } else if (IsInternalExit(event)) {
-    // nothing
-  } else {
-    fprintf(stderr, "invalid internal event flag %u\n", event);
-    abort();
-  }
+
+  *reinterpret_cast<ExtendType*>(mw_.Cursor()) = extend_type;
+  mw_.Seek(sizeof(ExtendType));
 #endif
+  return true;
 }
 
-void Logger::ExternalProcessEnter() {
-  ExternalProcess(internal_or_external_enter_flag, "");
+void Logger::ExternalProcessDurationEnter() {
+  if (!Logger::ExternalProcessWriteHeader(exntend_enter_flag, duration_enter,
+                                          0)) {
+    return;
+  }
 }
-void Logger::ExternalProcessExit(const std::string& text) {
-  ExternalProcess(external_exit_flag, text);
-}
-
-void Logger::ExternalProcess(ExtraInfo event, const std::string& text) {
-#ifdef IFTRACE_TEXT_FORMAT
-#else
-  uint32_t micro_duration_diff = get_current_micro_timestamp_diff_with_offset();
-  constexpr int text_align     = 4;
-  int max_n = sizeof(uint32_t) + sizeof(int32_t) + text.size() + text_align;
-  if (!mw_.CheckCapacity(max_n) && !mw_.PrepareWrite(max_n)) {
-    std::cerr << mw_.GetErrorMessage() << std::endl;
+void Logger::ExternalProcessDurationExit(const std::string& text) {
+  constexpr int text_align    = 4;
+  int reservation_buffer_size = text.size() + text_align;
+  if (!Logger::ExternalProcessWriteHeader(exntend_exit_flag, duration_exit,
+                                          reservation_buffer_size)) {
     return;
   }
 
-  *reinterpret_cast<uint32_t*>(mw_.Cursor()) =
-      set_flag_to_timestamp(micro_duration_diff, event);
-  mw_.Seek(sizeof(uint32_t));
-  if (IsExternalEnter(event)) {
-  } else if (IsExternalExit(event)) {
-    int32_t text_size                         = text.size();
-    *reinterpret_cast<int32_t*>(mw_.Cursor()) = text_size;
-    mw_.Seek(sizeof(int32_t));
-
-    text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
-    size_t aligned_text_size =
-        (((text_size) + (text_align - 1)) & ~(text_align - 1));
-    mw_.Seek(aligned_text_size);
-  } else {
-    fprintf(stderr, "invalid external event flag %u\n", event);
-    abort();
+  int32_t text_size                         = text.size();
+  *reinterpret_cast<int32_t*>(mw_.Cursor()) = text_size;
+  mw_.Seek(sizeof(int32_t));
+  text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
+  size_t aligned_text_size =
+      (((text_size) + (text_align - 1)) & ~(text_align - 1));
+  mw_.Seek(aligned_text_size);
+}
+void Logger::ExternalProcessAsyncEnter() {
+  if (!Logger::ExternalProcessWriteHeader(exntend_enter_flag, async_enter, 0)) {
+    return;
   }
-#endif
+}
+void Logger::ExternalProcessAsyncExit(const std::string& text) {
+  constexpr int text_align    = 4;
+  int reservation_buffer_size = text.size() + text_align;
+  if (!Logger::ExternalProcessWriteHeader(exntend_exit_flag, async_exit,
+                                          reservation_buffer_size)) {
+    return;
+  }
+
+  int32_t text_size                         = text.size();
+  *reinterpret_cast<int32_t*>(mw_.Cursor()) = text_size;
+  mw_.Seek(sizeof(int32_t));
+  text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
+  size_t aligned_text_size =
+      (((text_size) + (text_align - 1)) & ~(text_align - 1));
+  mw_.Seek(aligned_text_size);
+}
+void Logger::ExternalProcessInstantExit(const std::string& text) {
+  constexpr int text_align    = 4;
+  int reservation_buffer_size = text.size() + text_align;
+  if (!Logger::ExternalProcessWriteHeader(exntend_exit_flag, instant,
+                                          reservation_buffer_size)) {
+    return;
+  }
+
+  int32_t text_size                         = text.size();
+  *reinterpret_cast<int32_t*>(mw_.Cursor()) = text_size;
+  mw_.Seek(sizeof(int32_t));
+  text.copy(reinterpret_cast<char*>(mw_.Cursor()), text_size);
+  size_t aligned_text_size =
+      (((text_size) + (text_align - 1)) & ~(text_align - 1));
+  mw_.Seek(aligned_text_size);
 }
 
 void Logger::Enter(void* func_address, void* call_site) {
@@ -450,7 +463,7 @@ void Logger::Exit(void* func_address, void* call_site) {
 #else
   uint32_t micro_duration_diff = get_current_micro_timestamp_diff_with_offset();
   *reinterpret_cast<uint32_t*>(mw_.Cursor()) =
-      set_flag_to_timestamp(micro_duration_diff, internal_or_normal_exit_flag);
+      set_flag_to_timestamp(micro_duration_diff, normal_exit_flag);
   mw_.Seek(sizeof(uint32_t));
 #endif
 }

@@ -181,15 +181,12 @@ dsymutil iftracer_main
   * 有効にしない限り、スレッドは立ち上がらない
 
 ## data format
-| event_flag | description                            | binary content                                                   |
-|------------|----------------------------------------|------------------------------------------------------------------|
-| `0x0`      | enter function(12B/8B)                 | `timestamp_diff(4B)` -> `function address(8B/4B)`                |
-| `0x1`      | internal enter(4B), external enter(4B) | `timestamp_diff(4B)`                                             |
-| `0x2`      | exit function(4B), internal exit(4B)   | `timestamp_diff(4B)`                                             |
-| `0x3`      | external exit(12B~/8B~)                | `timestamp_diff(4B)` -> `text_size(4B)` -> `text(4B aligned)` |
-
-* internal enter/exit (used in iftracer itself)
-* external enter/exit (used as API)
+| event_flag | description            | binary content                                                                     |
+|------------|------------------------|------------------------------------------------------------------------------------|
+| `0x0`      | enter function(12B/8B) | `timestamp_diff(4B)` -> `function address(8B/4B)`                                  |
+| `0x1`      | extend enter(8B)       | `timestamp_diff(4B)` -> `extend type(4B)`                                          |
+| `0x2`      | exit function(4B)      | `timestamp_diff(4B)`                                                               |
+| `0x3`      | extend exit(12B~)      | `timestamp_diff(4B)` -> `extend type(4B)` -> `text_size(4B)` -> `text(4B aligned)` |
 
 ### timestamp_diff
 32bit
@@ -212,6 +209,15 @@ dsymutil iftracer_main
 
 ### text
 サイズは4B alignedとなり、終端のNULL文字は不要で、パディング値は任意
+
+### extend type
+``` cpp
+constexpr ExtendType duration_enter = 0x0;
+constexpr ExtendType duration_exit  = 0x1;
+constexpr ExtendType async_enter    = 0x2;
+constexpr ExtendType async_exit     = 0x3;
+constexpr ExtendType instant        = 0x4;
+```
 
 ## 個別に関数をフィルタする例
 ``` bash
