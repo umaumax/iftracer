@@ -167,7 +167,7 @@ class Logger {
 
  private:
   bool ExtendEventWriteHeader(ExtraInfo event, ExtendType extend_type,
-                                  size_t reservation_buffer_size);
+                              size_t reservation_buffer_size);
   void InternalProcessEnter();
   void InternalProcessExit();
 
@@ -331,7 +331,7 @@ void Logger::InternalProcessEnter() { ExtendEventDurationEnter(); }
 void Logger::InternalProcessExit() { ExtendEventDurationExit("[internal]"); }
 
 bool Logger::ExtendEventWriteHeader(ExtraInfo event, ExtendType extend_type,
-                                        size_t reservation_buffer_size) {
+                                    size_t reservation_buffer_size) {
 #ifdef IFTRACE_TEXT_FORMAT
 #else
   uint32_t micro_duration_diff = get_current_micro_timestamp_diff_with_offset();
@@ -353,8 +353,7 @@ bool Logger::ExtendEventWriteHeader(ExtraInfo event, ExtendType extend_type,
 }
 
 void Logger::ExtendEventDurationEnter() {
-  if (!Logger::ExtendEventWriteHeader(exntend_enter_flag, duration_enter,
-                                          0)) {
+  if (!Logger::ExtendEventWriteHeader(exntend_enter_flag, duration_enter, 0)) {
     return;
   }
 }
@@ -362,7 +361,7 @@ void Logger::ExtendEventDurationExit(const std::string& text) {
   constexpr int text_align    = 4;
   int reservation_buffer_size = text.size() + text_align;
   if (!Logger::ExtendEventWriteHeader(exntend_exit_flag, duration_exit,
-                                          reservation_buffer_size)) {
+                                      reservation_buffer_size)) {
     return;
   }
 
@@ -378,7 +377,7 @@ void Logger::ExtendEventAsyncEnter(const std::string& text) {
   constexpr int text_align    = 4;
   int reservation_buffer_size = text.size() + text_align;
   if (!Logger::ExtendEventWriteHeader(exntend_enter_flag, async_enter,
-                                          reservation_buffer_size)) {
+                                      reservation_buffer_size)) {
     return;
   }
 
@@ -394,7 +393,7 @@ void Logger::ExtendEventAsyncExit(const std::string& text) {
   constexpr int text_align    = 4;
   int reservation_buffer_size = text.size() + text_align;
   if (!Logger::ExtendEventWriteHeader(exntend_exit_flag, async_exit,
-                                          reservation_buffer_size)) {
+                                      reservation_buffer_size)) {
     return;
   }
 
@@ -410,7 +409,7 @@ void Logger::ExtendEventInstantExit(const std::string& text) {
   constexpr int text_align    = 4;
   int reservation_buffer_size = text.size() + text_align;
   if (!Logger::ExtendEventWriteHeader(exntend_exit_flag, instant,
-                                          reservation_buffer_size)) {
+                                      reservation_buffer_size)) {
     return;
   }
 
