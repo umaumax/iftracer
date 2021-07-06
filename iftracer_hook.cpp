@@ -163,7 +163,7 @@ class Logger {
   void ExtendEventDurationExit(const std::string& text);
   void ExtendEventAsyncEnter(const std::string& text);
   void ExtendEventAsyncExit(const std::string& text);
-  void ExtendEventInstantExit(const std::string& text);
+  void ExtendEventInstant(const std::string& text);
 
  private:
   bool ExtendEventWriteHeader(ExtraInfo event, ExtendType extend_type,
@@ -314,6 +314,7 @@ void ExtendEventDurationEnter();
 void ExtendEventDurationExit(const std::string& text);
 void ExtendEventAsyncEnter(const std::string& text);
 void ExtendEventAsyncExit(const std::string& text);
+void ExtendEventInstant(const std::string& text);
 
 void ExtendEventDurationEnter() { logger.ExtendEventDurationEnter(); }
 void ExtendEventDurationExit(const std::string& text) {
@@ -324,6 +325,9 @@ void ExtendEventAsyncEnter(const std::string& text) {
 }
 void ExtendEventAsyncExit(const std::string& text) {
   logger.ExtendEventAsyncExit(text);
+}
+void ExtendEventInstant(const std::string& text) {
+  logger.ExtendEventInstant(text);
 }
 }  // namespace iftracer
 
@@ -405,7 +409,7 @@ void Logger::ExtendEventAsyncExit(const std::string& text) {
       (((text_size) + (text_align - 1)) & ~(text_align - 1));
   mw_.Seek(aligned_text_size);
 }
-void Logger::ExtendEventInstantExit(const std::string& text) {
+void Logger::ExtendEventInstant(const std::string& text) {
   constexpr int text_align    = 4;
   int reservation_buffer_size = text.size() + text_align;
   if (!Logger::ExtendEventWriteHeader(exntend_exit_flag, instant,

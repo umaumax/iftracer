@@ -10,6 +10,7 @@ void ExtendEventDurationEnter();
 void ExtendEventDurationExit(const std::string& text);
 void ExtendEventAsyncEnter(const std::string& text);
 void ExtendEventAsyncExit(const std::string& text);
+void ExtendEventInstant(const std::string& text);
 #else
 inline void ExtendEventDurationEnter() {
   // do nothing used only for passing build
@@ -21,6 +22,9 @@ inline void ExtendEventAsyncEnter(const std::string& text) {
   // do nothing used only for passing build
 }
 inline void ExtendEventAsyncExit(const std::string& text) {
+  // do nothing used only for passing build
+}
+inline void ExtendEventInstant(const std::string& text) {
   // do nothing used only for passing build
 }
 #endif
@@ -94,6 +98,19 @@ class AsyncLogger {
  private:
   bool entered_flag_ = false;
   std::string text_;
+};
+
+class InstantLogger {
+ public:
+  __attribute__((no_instrument_function)) InstantLogger() {}
+  __attribute__((no_instrument_function))
+  InstantLogger(const std::string& text) {
+    Call(text);
+  }
+
+  __attribute__((no_instrument_function)) void Call(const std::string& text) {
+    ExtendEventInstant(text);
+  }
 };
 }  // namespace iftracer
 

@@ -66,6 +66,10 @@ void async_task() {
   async_logger.Exit(); // same as Enter text
 }
 
+void instant_task() {
+	iftracer::InstantLogger("func start");
+}
+
 void task(int x) {
   iftracer::ScopeLogger scope_logger;
   switch (x) {

@@ -45,6 +45,7 @@ int main() {
     iftracer::AsyncLogger async_logger;
     async_logger.Enter("for loop");
     std::thread th([&] {
+      iftracer::InstantLogger("thread start");
       hoge();
       fuga();
       hoge();
