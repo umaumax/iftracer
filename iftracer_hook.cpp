@@ -277,9 +277,8 @@ void Logger::Finalize() {
 }
 
 namespace {
-constexpr uint32_t timestamp_size   = sizeof(uint32_t) * 8;
-constexpr ExtraInfo unset_flag_mask = (0x1UL << (timestamp_size - 2)) - 1;
-// constexpr ExtraInfo flag_mask          = ~unset_flag_mask;
+constexpr uint32_t timestamp_size      = sizeof(uint32_t) * 8;
+constexpr ExtraInfo unset_flag_mask    = (0x1UL << (timestamp_size - 2)) - 1;
 constexpr ExtraInfo normal_enter_flag  = 0x0UL << (timestamp_size - 2);
 constexpr ExtraInfo exntend_enter_flag = 0x1UL << (timestamp_size - 2);
 constexpr ExtraInfo normal_exit_flag   = 0x2UL << (timestamp_size - 2);
@@ -292,13 +291,6 @@ constexpr ExtendType duration_exit  = 0x1;
 constexpr ExtendType async_enter    = 0x2;
 constexpr ExtendType async_exit     = 0x3;
 constexpr ExtendType instant        = 0x4;
-
-// bool IsExternalEnter(ExtraInfo event) {
-// return (event & flag_mask) == internal_or_external_enter_flag;
-// }
-// bool IsExternalExit(ExtraInfo event) {
-// return (event & flag_mask) == external_exit_flag;
-// }
 }  // namespace
 
 namespace iftracer {
