@@ -3,6 +3,7 @@ project(iftracer)
 
 OPTION(IFTRACER_EXAMPLE "Build iftracer example binary flag" OFF)
 OPTION(IFTRACER_TEST "Build iftracer test binary flag" OFF)
+OPTION(IFTRACER_LOCK_FREE_QUEUE "Enable lock-free-queue munmap() for flush file (note: spwan another thread)" OFF)
 set(CMAKE_CXX_STANDARD 11)
 
 ####
@@ -12,7 +13,11 @@ add_library(${PROJECT_NAME} ${${PROJECT_NAME}_LIB_SRCS})
 # target_link_libraries(${PROJECT_NAME}
 # )
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-g3 -O3")
+set(${PROJECT_NAME}_CXX_FLGAS "")
+if(IFTRACER_LOCK_FREE_QUEUE)
+  list(APPEND ${PROJECT_NAME}_CXX_FLGAS "-DLOCK_FREE_QUEUE")
+endif()
+set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-g3 -O3 ${${PROJECT_NAME}_CXX_FLGAS}")
 
 ####
 # example iftracer_main app

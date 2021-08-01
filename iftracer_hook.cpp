@@ -136,6 +136,9 @@ bool get_async_munmap_flag() {
     if (env != nullptr) {
       return std::stoi(env) != 0;
     }
+#ifdef LOCK_FREE_QUEUE
+    return true;
+#endif
     return false;
   }();
   return async_munmap_flag;
@@ -205,6 +208,7 @@ uint32_t get_current_micro_timestamp_diff_with_offset() {
   return static_cast<uint32_t>(timestamp_diff);
 }
 
+#ifndef LOCK_FREE_QUEUE
 std::function<int(void*, size_t)> get_async_munmap_func() {
   static iftracer::QueueWorker<std::tuple<void*, size_t>> munmaper(
       1, [](std::tuple<void*, size_t> arg) {
@@ -221,6 +225,26 @@ std::function<int(void*, size_t)> get_async_munmap_func() {
     return 0;
   };
 }
+#else
+#include "lock-free-queue-worker.hpp"
+std::function<int(void*, size_t)> get_async_munmap_func() {
+  const int buffer_number = 128;
+  static iftracer::LockFreeQueueWorker<std::tuple<void*, size_t>> munmaper(
+      buffer_number, [](std::tuple<void*, size_t> arg) {
+        void*& addr    = std::get<0>(arg);
+        size_t& length = std::get<1>(arg);
+        if (munmap(addr, length) != 0) {
+          // no error handling
+          return;
+        }
+      });
+  return [](void* addr, size_t length) {
+    std::tuple<void*, size_t> arg = std::make_tuple(addr, length);
+    munmaper.Post(arg);
+    return 0;
+  };
+}
+#endif
 
 // WARN: destructors which are called after this logger destructor cannot access this logger variable
 thread_local Logger logger(Logger::TRUNCATE);

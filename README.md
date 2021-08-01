@@ -17,6 +17,7 @@ target_link_libraries(${PROJECT_NAME} iftracer)
 # if there are lots of cmake target, easily way is just add below code
 include_directories(./iftracer)
 ```
+if you want to enable lock-free-queue munmap() for flush file, add `-DIFTRACER_LOCK_FREE_QUEUE=1` to cmake option (note: spwan another thread)
 
 ### make
 ``` make
@@ -30,6 +31,7 @@ $(CURDIR)/iftracer/libiftracer.a:
 CXXFLAGS := $(CXXFLAGS) -I$(CURDIR)/iftracer -g1 $(IFTRACER_APP_FLAGS)
 $(TARGET_APP): $(CURDIR)/iftracer/libiftracer.a
 ```
+if you want to enable lock-free-queue munmap() for flush file, add `LOCK_FREE_QUEUE=1` to make option (note: spwan another thread)
 
 rewrite `$(TARGET_APP)` to your main application target
 
@@ -196,6 +198,7 @@ dsymutil iftracer_main
 * `IFTRACER_ASYNC_MUNMAP=0`: 対象プロセス上に`munmap`を実行するスレッドを別途作成し、そこで実行するかどうか(0以外の数値を設定するとスレッドが起動する)
   * 1回あたり、`0.02ms`~`0.46ms`となり、普通に`munmap`を呼ぶ場合と比較して、多少高速化が見込める(スレッドを立ち上げる副作用には注意)
   * 有効にしない限り、スレッドは立ち上がらない
+  * ビルド時に`-DLOCK_FREE_QUEUE`を有効にすると、このオプションが自動的に有効になる
 
 ## data format
 | event_flag | description            | binary content                                                                     |
