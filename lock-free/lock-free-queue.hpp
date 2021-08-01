@@ -29,6 +29,7 @@ class LockFreeSPSCQueue {
     bool ret = work_queue_.try_pop(&x);
     if (ret && x != nullptr) {
       *v = x->value_;
+      buffer_queue_.push(*x);
       return true;
     }
     return false;

@@ -8,10 +8,10 @@
 using namespace iftracer;
 
 int main(int argc, char* argv[]) {
-  LockFreeSPSCQueue<int> queue(10);
+  LockFreeSPSCQueue<int> queue(5);
 
   std::thread th([&]() {
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 20; i++) {
       int x    = 0;
       bool ret = queue.try_pop(&x);
       if (ret) {
@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
   });
 
   std::vector<std::thread> handlers;
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 20; i++) {
     handlers.emplace_back(std::thread([&, i]() {
       std::this_thread::sleep_for(std::chrono::milliseconds(200 + i * 100));
       int x    = 100 + i;
