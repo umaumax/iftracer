@@ -8,12 +8,12 @@
 
 namespace iftracer {
 template <typename T>
-class LockFreeSPSCQueue {
+class LockFreeMPSCQueue {
  public:
   using Node = Node<T>;
 
-  LockFreeSPSCQueue<T>() {}
-  LockFreeSPSCQueue<T>(int buffer_size) { Init(buffer_size); }
+  LockFreeMPSCQueue<T>() {}
+  LockFreeMPSCQueue<T>(int buffer_size) { Init(buffer_size); }
   void Init(std::size_t buffer_size) {
     for (std::size_t i = 0; i < buffer_size; i++) {
       Node node;

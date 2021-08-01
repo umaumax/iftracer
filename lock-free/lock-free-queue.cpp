@@ -8,7 +8,7 @@
 using namespace iftracer;
 
 int main(int argc, char* argv[]) {
-  LockFreeSPSCQueue<int> queue(5);
+  LockFreeMPSCQueue<int> queue(5);
 
   std::thread th([&]() {
     for (int i = 0; i < 20; i++) {

@@ -51,7 +51,7 @@ class LockFreeQueueWorker {
     });
   }
 
-  LockFreeSPSCQueue<T> queue_;
+  LockFreeMPSCQueue<T> queue_;
   std::thread worker_;
   std::function<void(T)> task_;
   // std::atomic<bool> stop_flag_(false);
