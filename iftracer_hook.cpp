@@ -210,8 +210,9 @@ uint32_t get_current_micro_timestamp_diff_with_offset() {
 
 #ifndef LOCK_FREE_QUEUE
 std::function<int(void*, size_t)> get_async_munmap_func() {
+  const int parallel_number = 1;
   static iftracer::QueueWorker<std::tuple<void*, size_t>> munmaper(
-      1, [](std::tuple<void*, size_t> arg) {
+      parallel_number, [](std::tuple<void*, size_t> arg) {
         void*& addr    = std::get<0>(arg);
         size_t& length = std::get<1>(arg);
         if (munmap(addr, length) != 0) {
