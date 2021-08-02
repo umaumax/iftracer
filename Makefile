@@ -6,8 +6,8 @@ RANLIB := $(if $(RANLIB),$(RANLIB),ranlib)
 CFLAGS := -std=c++11 -Wall -O3
 CXXFLAGS := -std=c++11 -Wall -O3
 
-ifeq ($(LOCK_FREE_QUEUE), 1)
-	CXXFLAGS += -DLOCK_FREE_QUEUE
+ifeq ($(IFTRACER_LOCK_FREE_QUEUE), 1)
+	CXXFLAGS += -DIFTRACER_LOCK_FREE_QUEUE
 endif
 
 ifeq ($(shell uname -s),Darwin)

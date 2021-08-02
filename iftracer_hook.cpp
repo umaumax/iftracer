@@ -27,7 +27,7 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 #include "mmap_writer.hpp"
 #include "queue_worker.hpp"
 
-#ifdef LOCK_FREE_QUEUE
+#ifdef IFTRACER_LOCK_FREE_QUEUE
 #include "lock-free-queue-worker.hpp"
 #endif
 
@@ -140,7 +140,7 @@ bool get_async_munmap_flag() {
     if (env != nullptr) {
       return std::stoi(env) != 0;
     }
-#ifdef LOCK_FREE_QUEUE
+#ifdef IFTRACER_LOCK_FREE_QUEUE
     return true;
 #endif
     return false;
@@ -212,7 +212,7 @@ uint32_t get_current_micro_timestamp_diff_with_offset() {
   return static_cast<uint32_t>(timestamp_diff);
 }
 
-#ifndef LOCK_FREE_QUEUE
+#ifndef IFTRACER_LOCK_FREE_QUEUE
 std::function<int(void*, size_t)> get_async_munmap_func() {
   const int parallel_number = 1;
   static iftracer::QueueWorker<std::tuple<void*, size_t>> munmaper(
