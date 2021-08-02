@@ -191,14 +191,14 @@ dsymutil iftracer_main
   * トレースの途中で内部処理に時間がかかってしまうので、なるべく小さな単位を指定する
   * `IFTRACER_INIT_BUFFER`にて、大容量を確保する形式とすれば、この値はほとんど利用されない
 * `IFTRACER_FLUSH_BUFFER=64`: 各スレッドのメモリ解放(`munmap`)するバッファサイズのしきい値(4KB単位)(デフォルト: 4KB*64=256KB)
-  * `munmap`後は、OS任せで非同期にファイルへ書き込まれる
-  * 1回あたり、`0.1ms`~`0.5ms`ほどの処理時間である
+  * 256KBの場合に、1回あたり、`0.1ms`~`0.5ms`ほどの処理時間である
 * `IFTRACER_OUTPUT_DIRECTORY=./`: トレースログの出力先のディレクトリ
 * `IFTRACER_OUTPUT_FILE_PREFIX=iftracer.out.`: トレースログの出力ファイルのprefix
 * `IFTRACER_ASYNC_MUNMAP=0`: 対象プロセス上に`munmap`を実行するスレッドを別途作成し、そこで実行するかどうか(0以外の数値を設定するとスレッドが起動する)
   * 1回あたり、`0.02ms`~`0.46ms`となり、普通に`munmap`を呼ぶ場合と比較して、多少高速化が見込める(スレッドを立ち上げる副作用には注意)
   * 有効にしない限り、スレッドは立ち上がらない
   * ビルド時に`-DIFTRACER_LOCK_FREE_QUEUE`を有効にすると、このオプションが自動的に有効になり、ロックフリーなキューを利用する
+    * 1回あたり、`0.011ms`~`0.169ms`となる
 
 ## data format
 | event_flag | description            | binary content                                                                     |
