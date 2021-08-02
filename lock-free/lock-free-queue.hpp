@@ -2,6 +2,7 @@
 #define LOCK_FREE_QUEUE_HPP_INCLUDED
 
 #include <cstddef>
+#include <vector>
 
 #include "mpsc.hpp"
 #include "spmc.hpp"
@@ -10,13 +11,13 @@ namespace iftracer {
 template <typename T>
 class LockFreeMPSCQueue {
  public:
-  using Node = Node<T>;
+  using NodeT = Node<T>;
 
   LockFreeMPSCQueue<T>() {}
   LockFreeMPSCQueue<T>(int buffer_size) { Init(buffer_size); }
   void Init(std::size_t buffer_size) {
     for (std::size_t i = 0; i < buffer_size; i++) {
-      Node node;
+      NodeT node;
       nodes_.emplace_back(node);
     }
     for (auto& node : nodes_) {
@@ -25,7 +26,7 @@ class LockFreeMPSCQueue {
   }
 
   bool try_pop(T* v) {
-    Node* x  = nullptr;
+    NodeT* x = nullptr;
     bool ret = work_queue_.try_pop(&x);
     if (ret && x != nullptr) {
       *v = x->value_;
@@ -35,7 +36,7 @@ class LockFreeMPSCQueue {
     return false;
   }
   bool try_push(const T& v) {
-    Node* x  = nullptr;
+    NodeT* x = nullptr;
     bool ret = buffer_queue_.try_pop(&x);
     if (ret && x != nullptr) {
       x->value_ = v;
@@ -48,7 +49,7 @@ class LockFreeMPSCQueue {
  private:
   SPMCQueue<T> buffer_queue_;
   MPSCQueue<T> work_queue_;
-  std::vector<Node> nodes_;
+  std::vector<NodeT> nodes_;
 };
 }  // namespace iftracer
 

@@ -27,6 +27,10 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 #include "mmap_writer.hpp"
 #include "queue_worker.hpp"
 
+#ifdef LOCK_FREE_QUEUE
+#include "lock-free-queue-worker.hpp"
+#endif
+
 extern "C" {
 void __cyg_profile_func_enter(void* func_address, void* call_site);
 void __cyg_profile_func_exit(void* func_address, void* call_site);
@@ -227,7 +231,6 @@ std::function<int(void*, size_t)> get_async_munmap_func() {
   };
 }
 #else
-#include "lock-free-queue-worker.hpp"
 std::function<int(void*, size_t)> get_async_munmap_func() {
   const int buffer_number = 128;
   static iftracer::LockFreeQueueWorker<std::tuple<void*, size_t>> munmaper(

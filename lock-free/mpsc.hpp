@@ -3,50 +3,52 @@
 
 #include <atomic>
 #include <cassert>
-#include <chrono>
-#include <thread>
 
 #include "node.hpp"
 
 namespace iftracer {
 #ifdef __x86_64__
-#define pause(t) (asm volatile("pause"));
+#define pause(t) \
+  { asm volatile("pause"); }
 #else
-#define pause(t) (std::this_thread::sleep_for(std::chrono::nanoseconds((t))));
+#include <chrono>
+#include <thread>
+#define pause(t) \
+  { std::this_thread::sleep_for(std::chrono::nanoseconds((t))); }
 #endif
 
 template <typename T>
 class MPSCQueue {
  public:
-  using Node = Node<T>;
+  using NodeT = Node<T>;
 
  private:
-  std::atomic<Node*> tail;
-  Node stub;
+  std::atomic<NodeT*> tail{nullptr};
+  NodeT stub;
 
-  Node* head;
+  NodeT* head;
 
-  void insert(Node& first, Node& last) {
-    last.next  = nullptr;
-    Node* prev = tail.exchange(&last, std::memory_order_relaxed);
-    prev->next = &first;
+  void insert(NodeT& first, NodeT& last) {
+    last.next   = nullptr;
+    NodeT* prev = tail.exchange(&last, std::memory_order_relaxed);
+    prev->next  = &first;
   }
-  void insert(Node* first, Node* last) {
-    last->next = nullptr;
-    Node* prev = tail.exchange(last, std::memory_order_relaxed);
-    prev->next = first;
+  void insert(NodeT* first, NodeT* last) {
+    last->next  = nullptr;
+    NodeT* prev = tail.exchange(last, std::memory_order_relaxed);
+    prev->next  = first;
   }
 
  public:
   MPSCQueue() : tail(&stub), head(&stub) {}
 
-  void push(Node& elem) { insert(elem, elem); }
-  void push(Node& first, Node& last) { insert(first, last); }
-  void push(Node* elem) { insert(elem, elem); }
-  void push(Node* first, Node& last) { insert(first, last); }
+  void push(NodeT& elem) { insert(elem, elem); }
+  void push(NodeT& first, NodeT& last) { insert(first, last); }
+  void push(NodeT* elem) { insert(elem, elem); }
+  void push(NodeT* first, NodeT& last) { insert(first, last); }
 
   // non-blocking
-  bool try_pop(Node** v) {
+  bool try_pop(NodeT** v) {
     if (head == &stub) {
       if (tail == &stub) {
         return false;
@@ -58,14 +60,14 @@ class MPSCQueue {
     if (head->next == nullptr) {
       return false;
     }
-    Node* l = head;
-    head    = head->next;
-    *v      = l;
+    NodeT* l = head;
+    head     = head->next;
+    *v       = l;
     return true;
   }
 
   // pop operates in chunk of elements and re-inserts stub after each chunk
-  bool pop(Node** v) {
+  bool pop(NodeT** v) {
     if (head == &stub) {  // current chunk empty
       while (stub.next == nullptr) {
         pause(1000);
@@ -78,9 +80,9 @@ class MPSCQueue {
       pause(1000);
     }
     // retrieve and return first element
-    Node* l = head;
-    head    = head->next;
-    *v      = l;
+    NodeT* l = head;
+    head     = head->next;
+    *v       = l;
     return true;
   }
 };

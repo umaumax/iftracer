@@ -54,8 +54,7 @@ class LockFreeQueueWorker {
   LockFreeMPSCQueue<T> queue_;
   std::thread worker_;
   std::function<void(T)> task_;
-  // std::atomic<bool> stop_flag_(false);
-  std::atomic<bool> stop_flag_;
+  std::atomic<bool> stop_flag_{false};
 };
 }  // namespace iftracer
 
