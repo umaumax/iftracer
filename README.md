@@ -9,6 +9,8 @@ link iftracer library and build target application with `-finstrument-functions`
 if you use `cmake`, just add below script to `CMakeLists.txt` and run `git clone https://github.com/umaumax/iftracer`
 
 ``` cmake
+# SET(IFTRACER_LOCK_FREE_QUEUE ON CACHE BOOL "Enable lock-free-queue munmap() for flush file (note: spwan another thread)")
+
 add_subdirectory(iftracer)
 set(IFTRACER_COMPILE_FLAGS "-std=c++11 -lpthread -g1 -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
 set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_FLAGS "${IFTRACER_COMPILE_FLAGS}")
@@ -17,6 +19,7 @@ target_link_libraries(${PROJECT_NAME} iftracer)
 # if there are lots of cmake target, easily way is just add below code
 include_directories(./iftracer)
 ```
+
 if you want to enable lock-free-queue munmap() for flush file, add `-DIFTRACER_LOCK_FREE_QUEUE=1` to cmake option (note: spwan another thread)
 
 ### make
@@ -27,10 +30,13 @@ ifneq ($(filter clang%,$(CXX)),)
 endif
 $(CURDIR)/iftracer/libiftracer.a:
 	$(MAKE) -C ./iftracer
+	# other option
+	# $(MAKE) -C ./iftracer IFTRACER_LOCK_FREE_QUEUE=1
 
 CXXFLAGS := $(CXXFLAGS) -I$(CURDIR)/iftracer -g1 $(IFTRACER_APP_FLAGS)
 $(TARGET_APP): $(CURDIR)/iftracer/libiftracer.a
 ```
+
 if you want to enable lock-free-queue munmap() for flush file, add `IFTRACER_LOCK_FREE_QUEUE=1` to make option (note: spwan another thread)
 
 rewrite `$(TARGET_APP)` to your main application target
