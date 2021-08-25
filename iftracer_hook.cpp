@@ -295,6 +295,7 @@ void Logger::Initialize(int64_t offset) {
   bool ret = mw_.Open(filename, buffer_size, offset);
   if (!ret) {
     std::cerr << mw_.GetErrorMessage() << std::endl;
+    assert(false && "failed to open file at Logger::Initialize()");
   }
   flush_buffer_size_ = get_flush_buffer_size();
   if (get_async_munmap_flag()) {
