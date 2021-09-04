@@ -76,10 +76,10 @@ size_t get_init_buffer_size() {
     size_t init_buffer_size = 0;
     char* env               = getenv("IFTRACER_INIT_BUFFER");
     if (env != nullptr) {
-      init_buffer_size = 4096 * std::stoi(std::string(env));
+      init_buffer_size = 8192 * std::stoi(std::string(env));
     }
-    if (init_buffer_size < 4096 * 4 * 1024) {
-      init_buffer_size = 4096 * 4 * 1024;
+    if (init_buffer_size < 8192 * (4 * 1024)) {
+      init_buffer_size = 8192 * (4 * 1024);
     }
     return init_buffer_size;
   }();
