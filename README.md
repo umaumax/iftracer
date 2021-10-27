@@ -2,8 +2,12 @@
 
 instrument-functions tracer
 
+This iftracer embed trace log at build target function entrance and exit.
+Note that, for example, functions calls of shared libraries that elf file depends on will not appear in the log.
+(If you want to see those logs, build shared libraries with this iftracer library.)
+
 ## how to build with your app
-link iftracer library and build target application with `-finstrument-functions`
+link libiftracer.a library and build target application with `-finstrument-functions`
 
 ### cmake
 if you use `cmake`, just add below script to `CMakeLists.txt` and run `git clone https://github.com/umaumax/iftracer`
