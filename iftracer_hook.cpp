@@ -17,6 +17,7 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
+#include <cassert>
 #include <chrono>
 #include <csignal>
 #include <cstring>
