@@ -7,17 +7,24 @@ OPTION(IFTRACER_LOCK_FREE_QUEUE "Enable lock-free-queue munmap() for flush file 
 set(CMAKE_CXX_STANDARD 11)
 
 ####
-# library
+# for static(.a) library
 set(${PROJECT_NAME}_LIB_SRCS iftracer_hook.cpp mmap_writer.cpp)
-add_library(${PROJECT_NAME} ${${PROJECT_NAME}_LIB_SRCS})
-# target_link_libraries(${PROJECT_NAME}
-# )
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+add_library(${PROJECT_NAME}_OBJECT OBJECT ${${PROJECT_NAME}_LIB_SRCS})
+set_property(TARGET ${PROJECT_NAME}_OBJECT PROPERTY POSITION_INDEPENDENT_CODE ON)
 set(${PROJECT_NAME}_CXX_FLGAS "")
 if(IFTRACER_LOCK_FREE_QUEUE)
   list(APPEND ${PROJECT_NAME}_CXX_FLGAS "-DIFTRACER_LOCK_FREE_QUEUE")
 endif()
-set_target_properties(${PROJECT_NAME} PROPERTIES COMPILE_FLAGS "-g3 -O3 ${${PROJECT_NAME}_CXX_FLGAS}")
+set_target_properties(${PROJECT_NAME}_OBJECT PROPERTIES COMPILE_FLAGS "-g3 -O3 ${${PROJECT_NAME}_CXX_FLGAS}")
+
+add_library(${PROJECT_NAME} STATIC $<TARGET_OBJECTS:${PROJECT_NAME}_OBJECT>)
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+
+# for shared(.so) library
+add_library(${PROJECT_NAME}_SHARED SHARED $<TARGET_OBJECTS:${PROJECT_NAME}_OBJECT>)
+set_target_properties(${PROJECT_NAME}_SHARED PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_SHARED)
 
 ####
 # example iftracer_main app

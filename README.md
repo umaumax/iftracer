@@ -17,7 +17,7 @@ if you use `cmake`, just add below script to `CMakeLists.txt` and run `git clone
 
 add_subdirectory(iftracer)
 set(IFTRACER_COMPILE_FLAGS "-std=c++11 -lpthread -g1 -DIFTRACER_ENABLE_API -finstrument-functions -finstrument-functions-exclude-file-list=bits,include/c++")
-set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY COMPILE_FLAGS "${IFTRACER_COMPILE_FLAGS}")
+set_property(TARGET ${PROJECT_NAME} APPEND_STRING PROPERTY COMPILE_FLAGS " ${IFTRACER_COMPILE_FLAGS}")
 target_link_libraries(${PROJECT_NAME} iftracer)
 
 # if there are lots of cmake target, easily way is just add below code
