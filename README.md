@@ -160,9 +160,9 @@ mkdir build
 cd build
 cmake .. -DIFTRACER_EXAMPLE=1
 make
-./iftracer_main
+./iftracer_main threads
 
-../conv.sh ./iftracer_main
+../conv.sh ./iftracer_main threads
 ```
 
 for Max OS X
@@ -171,14 +171,14 @@ for Max OS X
 CXX=g++-11 cmake .. -DIFTRACER_EXAMPLE=1
 
 # for dwarf info
-dsymutil iftracer_main
+dsymutil iftracer_main threads
 ```
 
 ### make
 ``` bash
 make
 make run
-./conv.sh ./iftracer_main
+./conv.sh ./iftracer_main threads
 ```
 
 for Max OS X
@@ -187,7 +187,7 @@ for Max OS X
 make CXX=g++-11
 
 # for dwarf info
-dsymutil iftracer_main
+dsymutil iftracer_main threads
 ```
 
 ## for detail

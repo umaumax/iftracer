@@ -3,6 +3,7 @@
 #include <chrono>
 #include <iostream>
 #include <thread>
+#include <vector>
 
 #include "iftracer.hpp"
 
@@ -30,42 +31,83 @@ void fuga() {
 
 Animal global_animal;
 
-int main() {
-  std::cout << "Hello world!" << std::endl;
-  char buf[256] = {0};
-  snprintf(buf, sizeof(buf), "snprintf sample");
-  std::cout << "snprintf:" << buf << std::endl;
+#include <iostream>
 
-  hoge();
-  fuga();
+void help(std::string app_name) {
+  std::cout << "usage: " << app_name << " <pattern>" << std::endl
+            << "    pattern: hello_world, threads" << std::endl;
+}
 
-  iftracer::AsyncLogger async_logger;
-  async_logger.Enter("thread loop start");
-  for (int i = 0; i < 10; i++) {
-    iftracer::AsyncLogger async_logger;
-    async_logger.Enter("for loop");
-    std::thread th([&] {
-      iftracer::InstantLogger("thread start");
-      hoge();
-      fuga();
-      hoge();
-      piyo();
-      fuga();
-    });
-    for (int i = 0; i < 10; i++) {
-      printf("hoge:%p\n", hoge);
-      printf("fuga:%p\n", fuga);
-      printf("piyo:%p\n", piyo);
-      printf("main:%p\n", main);
-      hoge();
-      fuga();
-    }
-    th.join();
-    hoge();
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    hoge();
-    async_logger.Exit("for loop");
+int main(int argc, const char* argv[]) {
+  if (argc == 1) {
+    help(std::string(argv[0]));
+    return 1;
   }
-  async_logger.Exit();
+  std::string pattern(argv[1]);
+
+  if (pattern == "hello_world") {
+    std::cout << "Hello world!" << std::endl;
+    char buf[256] = {0};
+    snprintf(buf, sizeof(buf), "snprintf sample");
+    std::cout << "snprintf:" << buf << std::endl;
+
+    hoge();
+    fuga();
+
+    iftracer::AsyncLogger async_logger;
+    async_logger.Enter("thread loop start");
+    for (int i = 0; i < 10; i++) {
+      iftracer::AsyncLogger async_logger;
+      async_logger.Enter("for loop");
+      std::thread th([&] {
+        iftracer::InstantLogger("thread start");
+        hoge();
+        fuga();
+        hoge();
+        piyo();
+        fuga();
+      });
+      for (int i = 0; i < 10; i++) {
+        printf("hoge:%p\n", hoge);
+        printf("fuga:%p\n", fuga);
+        printf("piyo:%p\n", piyo);
+        printf("main:%p\n", main);
+        hoge();
+        fuga();
+      }
+      th.join();
+      hoge();
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      hoge();
+      async_logger.Exit("for loop");
+    }
+    async_logger.Exit();
+  } else if (pattern == "threads") {
+    std::vector<std::thread> threads;
+
+    int cnt = 0;
+    std::mutex m;
+    for (int i = 0; i < 10; i++) {
+      threads.emplace_back(std::thread([&] {
+        for (int i = 0; i < 100; i++) {
+          std::lock_guard<std::mutex> lock(m);
+          std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+          cnt++;
+          uint64_t timestamp =
+              std::chrono::duration_cast<std::chrono::microseconds>(
+                  std::chrono::system_clock::now().time_since_epoch())
+                  .count();
+          auto scope_logger = iftracer::ScopeLogger(std::to_string(cnt) + ":" +
+                                                    std::to_string(timestamp));
+        }
+      }));
+    }
+    for (auto& th : threads) {
+      th.join();
+    }
+  } else {
+    help(std::string(argv[0]));
+    return 1;
+  }
   return 0;
 }
