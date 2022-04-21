@@ -6,6 +6,8 @@ This iftracer embed trace log at build target function entrance and exit.
 Note that, for example, functions calls of shared libraries that elf file depends on will not appear in the log.
 (If you want to see those logs, build shared libraries with this iftracer library.)
 
+![iftracer-threads-example-screenshot]( https://user-images.githubusercontent.com/21164287/164489261-ae48bf5f-37a6-4386-acc9-b3363853b462.png )
+
 ## how to build with your app
 link libiftracer.a library and build target application with `-finstrument-functions`
 
