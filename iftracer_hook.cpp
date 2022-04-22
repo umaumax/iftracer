@@ -396,9 +396,8 @@ void check_cpu_id_event() {
   int cpu_id = sched_getcpu();
   if (cpu_id != pre_cpu_id) {
     // std::string text = std::string("TID:") + std::to_string(tid) + std::string(", CPU:") + std::to_string(pre_cpu_id) + std::string("->") + std::to_string(cpu_id);
-    std::string text =
-        "cpu switched";  // static message generate same color at chrome tracer
-    iftracer::ExtendEventInstant(text);
+    // std::string text = "cpu switched";  // static message generate same color at chrome tracer
+    // iftracer::ExtendEventInstant(text);
 
     std::string exit_text = cpu_id_text(pre_cpu_id);
     iftracer::ExtendEventAsyncExit(exit_text);
