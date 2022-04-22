@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <mutex>
 #include <thread>
 #include <vector>
 
@@ -91,7 +92,6 @@ int main(int argc, const char* argv[]) {
       threads.emplace_back(std::thread([&] {
         for (int i = 0; i < 100; i++) {
           std::lock_guard<std::mutex> lock(m);
-          std::this_thread::sleep_for(std::chrono::nanoseconds(500));
           cnt++;
           uint64_t timestamp =
               std::chrono::duration_cast<std::chrono::microseconds>(
@@ -99,8 +99,14 @@ int main(int argc, const char* argv[]) {
                   .count();
           auto scope_logger = iftracer::ScopeLogger(std::to_string(cnt) + ":" +
                                                     std::to_string(timestamp));
+          std::this_thread::sleep_for(std::chrono::nanoseconds(500));
+          std::this_thread::yield();
         }
       }));
+    }
+    {
+      std::lock_guard<std::mutex> lock(m);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     for (auto& th : threads) {
       th.join();
