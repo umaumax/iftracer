@@ -4,6 +4,7 @@ project(iftracer)
 OPTION(IFTRACER_EXAMPLE "Build iftracer example binary flag" OFF)
 OPTION(IFTRACER_TEST "Build iftracer test binary flag" OFF)
 OPTION(IFTRACER_LOCK_FREE_QUEUE "Enable lock-free-queue munmap() for flush file (note: spwan another thread)" OFF)
+OPTION(IFTRACER_DISABLE_CPU_ID  "Disable cpu id recording" OFF)
 set(CMAKE_CXX_STANDARD 11)
 
 ####
@@ -15,6 +16,10 @@ set(${PROJECT_NAME}_CXX_FLGAS "")
 if(IFTRACER_LOCK_FREE_QUEUE)
   list(APPEND ${PROJECT_NAME}_CXX_FLGAS "-DIFTRACER_LOCK_FREE_QUEUE")
 endif()
+if(IFTRACER_DISABLE_CPU_ID)
+  list(APPEND ${PROJECT_NAME}_CXX_FLGAS "-DIFTRACER_DISABLE_CPU_ID")
+endif()
+
 set_target_properties(${PROJECT_NAME}_OBJECT PROPERTIES COMPILE_FLAGS "-g3 -O3 ${${PROJECT_NAME}_CXX_FLGAS}")
 
 add_library(${PROJECT_NAME} STATIC $<TARGET_OBJECTS:${PROJECT_NAME}_OBJECT>)

@@ -14,6 +14,7 @@ FastLoggerCaller fast_logger_caller(tls_init_trigger);
 }  // namespace
 
 #include <inttypes.h>
+#include <sched.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
 
@@ -197,6 +198,7 @@ bool is_main_thread() {
   return main_tid == tid;
 #endif
 }
+
 uint64_t get_base_timestamp() {
   static uint64_t base_timestamp = get_current_micro_timestamp();
   return base_timestamp;
@@ -264,16 +266,26 @@ struct ForceLoggerDestructor {
   }
 } force_logger_destructor;
 #endif
+
+thread_local int pre_cpu_id = -1;
+
+void start_cpu_id_event();
+void end_cpu_id_event();
+void check_cpu_id_event();
 }  // namespace
 
 Logger::Logger(int64_t offset) {
   Initialize(offset);
-  if (offset == Logger::TRUNCATE && !is_main_thread()) {
-    ExtendEventAsyncEnter("[thread lifetime]");
+  if (offset == Logger::TRUNCATE) {
+    if (!is_main_thread()) {
+      ExtendEventAsyncEnter("[thread lifetime]");
+    }
+    start_cpu_id_event();
   }
 }
 Logger::~Logger() {
   if (tls_init_trigger != 0) {
+    end_cpu_id_event();
     if (!is_main_thread()) {
       ExtendEventAsyncExit("[thread lifetime]");
     }
@@ -360,6 +372,43 @@ void ExtendEventInstant(const std::string& text) {
   logger.ExtendEventInstant(text);
 }
 }  // namespace iftracer
+
+namespace {
+inline std::string cpu_id_text(int cpu_id) {
+  return std::string("CPU:") + std::to_string(cpu_id);
+}
+#ifdef IFTRACER_DISABLE_CPU_ID
+void start_cpu_id_event() {}
+void end_cpu_id_event() {}
+void check_cpu_id_event() {}
+#else
+void start_cpu_id_event() {
+  int cpu_id             = sched_getcpu();
+  std::string enter_text = cpu_id_text(cpu_id);
+  iftracer::ExtendEventAsyncEnter(enter_text);
+  pre_cpu_id = cpu_id;
+}
+void end_cpu_id_event() {
+  std::string exit_text = cpu_id_text(pre_cpu_id);
+  iftracer::ExtendEventAsyncExit(exit_text);
+}
+void check_cpu_id_event() {
+  int cpu_id = sched_getcpu();
+  if (cpu_id != pre_cpu_id) {
+    // std::string text = std::string("TID:") + std::to_string(tid) + std::string(", CPU:") + std::to_string(pre_cpu_id) + std::string("->") + std::to_string(cpu_id);
+    std::string text =
+        "cpu switched";  // static message generate same color at chrome tracer
+    iftracer::ExtendEventInstant(text);
+
+    std::string exit_text = cpu_id_text(pre_cpu_id);
+    iftracer::ExtendEventAsyncExit(exit_text);
+    std::string enter_text = cpu_id_text(cpu_id);
+    iftracer::ExtendEventAsyncEnter(enter_text);
+    pre_cpu_id = cpu_id;
+  }
+}
+#endif
+}  // namespace
 
 void Logger::InternalProcessEnter() { ExtendEventDurationEnter(); }
 void Logger::InternalProcessExit() { ExtendEventDurationExit("[internal]"); }
@@ -469,6 +518,8 @@ void Logger::Enter(void* func_address, void* call_site) {
     InternalProcessExit();
   }
 
+  check_cpu_id_event();
+
   // arm thumb mode use LSB
   // Odd addresses for Thumb mode, and even addresses for ARM mode.
   void* normalized_func_address =
@@ -524,6 +575,8 @@ void Logger::Exit(void* func_address, void* call_site) {
       set_flag_to_timestamp(micro_duration_diff, normal_exit_flag);
   mw_.Seek(sizeof(uint32_t));
 #endif
+
+  check_cpu_id_event();
 }
 
 void __attribute__((no_instrument_function))
