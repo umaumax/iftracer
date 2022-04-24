@@ -298,6 +298,10 @@ void __cyg_profile_func_exit(void* func_address, void* call_site);
 
 `-finstrument-functions`でフックが埋め込まれないアドレスは存在するし、おそらく、上位2bitは0利用しなくとも問題ないと考えられるので、関数のアドレスの上位2bitに情報を埋め込む
 
+* タイムスタンプは`CLOCK_REALTIME`ではなく、`CLOCK_MONOTONIC`/`CLOCK_MONOTONIC_COARSE`/`CLOCK_MONOTONIC_RAW`などを利用する方がよい
+  * `CLOCK_REALTIME`は、NTPによって、時刻が不連続に変化してしまうことがあることに注意
+  * 他の測定結果と結合する際には注意
+
 ファイルの書き出し速度
 
 * e.g. 遅いマシンの例で、16KBの書き出しに、4ms~10msほど
